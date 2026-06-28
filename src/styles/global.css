@@ -1,0 +1,23 @@
+/* Minimal globals — AntD tokens cover the rest (CLAUDE.md §2). */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+}
+
+/* Tabular numerals for any money cell tagged .num (DataTable money columns use this). */
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Full-height app container */
+.app-root {
+  min-height: 100vh;
+}
