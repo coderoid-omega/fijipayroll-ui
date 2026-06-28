@@ -9,14 +9,15 @@ import { TaxConfigPage } from '@/features/tax-config/pages/TaxConfigPage';
 import { FnpfSchemePage } from '@/features/tax-config/pages/FnpfSchemePage';
 import { PayCalendarPage } from '@/features/pay-calendar/pages/PayCalendarPage';
 import { OrgLookupsPage } from '@/features/org-lookups/pages/OrgLookupsPage';
+import { EmployeesListPage } from '@/features/employees/pages/EmployeesListPage';
+import { EmployeeDetailPage } from '@/features/employees/pages/EmployeeDetailPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { PlaceholderPage } from './pages/PlaceholderPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 /**
  * Data router (React Router v6, CLAUDE.md §2). Public /login; everything else is behind
- * ProtectedRoute inside the AppLayout shell. Feature routes currently render PlaceholderPage and
- * are swapped for real screens per epic.
+ * ProtectedRoute inside the AppLayout shell. (PlaceholderPage remains available for any future
+ * not-yet-built area.)
  */
 export const router = createBrowserRouter([
   {
@@ -33,10 +34,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardPage /> },
           { path: 'companies', element: <CompaniesListPage /> },
-          {
-            path: 'employees',
-            element: <PlaceholderPage path="/employees" epic="Stretch / Sprint 2 — Employees" />,
-          },
+          { path: 'employees', element: <EmployeesListPage /> },
+          { path: 'employees/:id', element: <EmployeeDetailPage /> },
           { path: 'pay-elements', element: <PayElementsPage /> },
           { path: 'pay-calendar', element: <PayCalendarPage /> },
           { path: 'tax-config', element: <TaxConfigPage /> },
