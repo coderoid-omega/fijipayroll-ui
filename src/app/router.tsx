@@ -7,6 +7,8 @@ import { CompaniesListPage } from '@/features/companies/pages/CompaniesListPage'
 import { PayElementsPage } from '@/features/pay-elements/pages/PayElementsPage';
 import { TaxConfigPage } from '@/features/tax-config/pages/TaxConfigPage';
 import { FnpfSchemePage } from '@/features/tax-config/pages/FnpfSchemePage';
+import { PayCalendarPage } from '@/features/pay-calendar/pages/PayCalendarPage';
+import { OrgLookupsPage } from '@/features/org-lookups/pages/OrgLookupsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -36,16 +38,10 @@ export const router = createBrowserRouter([
             element: <PlaceholderPage path="/employees" epic="Stretch / Sprint 2 — Employees" />,
           },
           { path: 'pay-elements', element: <PayElementsPage /> },
-          {
-            path: 'pay-calendar',
-            element: <PlaceholderPage path="/pay-calendar" epic="Epic 5 — Pay calendar & org lookups" />,
-          },
+          { path: 'pay-calendar', element: <PayCalendarPage /> },
           { path: 'tax-config', element: <TaxConfigPage /> },
           { path: 'fnpf-schemes', element: <FnpfSchemePage /> },
-          {
-            path: 'org-lookups',
-            element: <PlaceholderPage path="/org-lookups" epic="Epic 5 — Departments / Offices / Occupations" />,
-          },
+          { path: 'org-lookups', element: <OrgLookupsPage /> },
           { path: '404', element: <NotFoundPage /> },
           { path: '*', element: <Navigate to="/404" replace /> },
         ],
