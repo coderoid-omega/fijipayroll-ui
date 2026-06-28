@@ -3,6 +3,7 @@ import { AppLayout } from './layout/AppLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { RouteError } from './routes/RouteError';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
+import { CompaniesListPage } from '@/features/companies/pages/CompaniesListPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -26,10 +27,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <DashboardPage /> },
-          {
-            path: 'companies',
-            element: <PlaceholderPage path="/companies" epic="Epic 2 — Company / Brand master (D11)" />,
-          },
+          { path: 'companies', element: <CompaniesListPage /> },
           {
             path: 'employees',
             element: <PlaceholderPage path="/employees" epic="Stretch / Sprint 2 — Employees" />,

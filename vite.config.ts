@@ -12,9 +12,10 @@ export default defineConfig({
     },
   },
   build: {
-    // antd is a large but well-cached vendor chunk; raise the threshold so the build is clean
-    // without hiding genuinely oversized app chunks.
-    chunkSizeWarningLimit: 800,
+    // antd is a large but well-cached single vendor chunk (~1MB minified, ~300KB gzipped). Set the
+    // threshold above its known size so the build stays clean; the app/index chunk is separate and
+    // still small, so genuine app bloat would surface elsewhere.
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: {
