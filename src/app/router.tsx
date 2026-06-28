@@ -4,6 +4,7 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { RouteError } from './routes/RouteError';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { CompaniesListPage } from '@/features/companies/pages/CompaniesListPage';
+import { PayElementsPage } from '@/features/pay-elements/pages/PayElementsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -32,10 +33,7 @@ export const router = createBrowserRouter([
             path: 'employees',
             element: <PlaceholderPage path="/employees" epic="Stretch / Sprint 2 — Employees" />,
           },
-          {
-            path: 'pay-elements',
-            element: <PlaceholderPage path="/pay-elements" epic="Epic 3 — Pay Elements (codes + 14 groups)" />,
-          },
+          { path: 'pay-elements', element: <PayElementsPage /> },
           {
             path: 'pay-calendar',
             element: <PlaceholderPage path="/pay-calendar" epic="Epic 5 — Pay calendar & org lookups" />,
