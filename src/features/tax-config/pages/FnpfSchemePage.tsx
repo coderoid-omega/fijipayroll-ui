@@ -15,7 +15,9 @@ export function FnpfSchemePage() {
   const { data, isLoading, isError, error, refetch } = useFnpfSchemes();
   const { me } = useAuth();
   const canEdit = me?.permissions?.includes('tax-config:write') ?? false;
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawer, setDrawer] = useState<{ mode: 'new' } | { mode: 'edit'; scheme: FnpfScheme } | null>(
+    null,
+  );
 
   const schemes = useMemo(
     () => [...(data ?? [])].sort((a, b) => (a.validFrom < b.validFrom ? 1 : -1)),
@@ -77,9 +79,24 @@ export function FnpfSchemePage() {
       dataIndex: 'status',
       key: 'status',
       render: (s: FnpfScheme['status']) => (
-        <Tag color={s === 'Active' ? 'green' : 'default'}>{s}</Tag>
+        <Tag color={s === 'Active' ? 'green' : s === 'Draft' ? 'gold' : 'default'}>{s}</Tag>
       ),
     },
+    ...(canEdit
+      ? [
+          {
+            title: 'Actions',
+            key: 'actions',
+            width: 90,
+            render: (_: unknown, row: FnpfScheme) =>
+              row.status === 'Draft' ? (
+                <Button type="link" size="small" onClick={() => setDrawer({ mode: 'edit', scheme: row })}>
+                  Edit
+                </Button>
+              ) : null,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -90,7 +107,7 @@ export function FnpfSchemePage() {
         breadcrumbs={[{ title: 'Home', href: '/' }, { title: 'FNPF Scheme' }]}
         extra={
           canEdit ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawer({ mode: 'new' })}>
               New version
             </Button>
           ) : undefined
@@ -118,9 +135,10 @@ export function FnpfSchemePage() {
       </Card>
 
       <FnpfSchemeFormDrawer
-        open={drawerOpen}
-        cloneFrom={activeScheme}
-        onClose={() => setDrawerOpen(false)}
+        open={drawer !== null}
+        editing={drawer?.mode === 'edit' ? drawer.scheme : undefined}
+        cloneFrom={drawer?.mode === 'new' ? activeScheme : undefined}
+        onClose={() => setDrawer(null)}
       />
     </>
   );

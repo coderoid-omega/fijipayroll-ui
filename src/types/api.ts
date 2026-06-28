@@ -252,7 +252,7 @@ export interface FnpfScheme {
   voluntaryPct?: number;
   employerExcessExemptPct: number;
   wageCeiling?: number | null;
-  status: 'Active' | 'Superseded';
+  status: 'Active' | 'Superseded' | 'Draft';
 }
 
 // ---- statutory (write) ----

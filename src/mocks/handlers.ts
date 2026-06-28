@@ -367,12 +367,22 @@ export const handlers = [
       return problem(409, 'TAX_RULE_SET_IMMUTABLE', 'A superseded rule set is immutable');
     }
     const body = (await request.json()) as TaxRuleSetWrite;
+    const newStatus = body.status ?? existing.status;
+    // Activating a Draft supersedes the current active rule set (excluding this one).
+    if (newStatus === 'Active' && existing.status !== 'Active') {
+      taxRuleSets.forEach((t) => {
+        if (t.id !== existing.id && t.status === 'Active') {
+          t.status = 'Superseded';
+          t.validTo = body.validFrom;
+        }
+      });
+    }
     const updated: TaxRuleSet = {
       ...existing,
       code: body.code,
       description: body.description ?? null,
       validFrom: body.validFrom,
-      status: body.status ?? existing.status,
+      status: newStatus,
       brackets: body.brackets.map((b, i) => ({ ...b, id: newId('d') + i })),
     };
     taxRuleSets[idx] = updated;
@@ -411,6 +421,7 @@ export const handlers = [
       });
     }
     const status = body.status ?? 'Active';
+    // Only an activated version supersedes the current active scheme; a Draft does not.
     if (status === 'Active') {
       fnpfSchemes.forEach((s) => {
         if (s.status === 'Active') {
@@ -428,9 +439,8 @@ export const handlers = [
       voluntaryPct: body.voluntaryPct ?? 0,
       employerExcessExemptPct: body.employerExcessExemptPct,
       wageCeiling: body.wageCeiling ?? null,
-      status: status === 'Draft' ? 'Superseded' : 'Active',
+      status,
     };
-    // Note: FnpfScheme.status enum is Active|Superseded; a Draft is held as non-active here.
     fnpfSchemes.push(created);
     return HttpResponse.json(created, {
       status: 201,
@@ -448,6 +458,16 @@ export const handlers = [
       return problem(409, 'FNPF_SCHEME_IMMUTABLE', 'A superseded scheme is immutable');
     }
     const body = (await request.json()) as FnpfSchemeWrite;
+    const newStatus = body.status ?? existing.status;
+    // Activating a Draft supersedes the current active scheme (excluding this one).
+    if (newStatus === 'Active' && existing.status !== 'Active') {
+      fnpfSchemes.forEach((s) => {
+        if (s.id !== existing.id && s.status === 'Active') {
+          s.status = 'Superseded';
+          s.validTo = body.validFrom;
+        }
+      });
+    }
     fnpfSchemes[idx] = {
       ...existing,
       validFrom: body.validFrom,
@@ -456,6 +476,7 @@ export const handlers = [
       voluntaryPct: body.voluntaryPct ?? 0,
       employerExcessExemptPct: body.employerExcessExemptPct,
       wageCeiling: body.wageCeiling ?? null,
+      status: newStatus,
     };
     return HttpResponse.json(fnpfSchemes[idx]);
   }),

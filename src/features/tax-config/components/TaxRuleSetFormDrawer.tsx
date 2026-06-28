@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, App as AntApp, Form, Input, Tabs } from 'antd';
+import { Alert, App as AntApp, Checkbox, Form, Input, Tabs } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { EffectiveDateField, FormDrawer } from '@/components';
 import { toApiDate } from '@/lib/date';
@@ -58,6 +58,7 @@ interface HeaderForm {
   code: string;
   description?: string;
   validFrom?: Dayjs;
+  saveAsDraft?: boolean;
 }
 
 /** Create a new tax rule set version (or edit a Draft) with an editable brackets grid — Epic 4.1. */
@@ -77,7 +78,11 @@ export function TaxRuleSetFormDrawer({ open, editing, cloneFrom, onClose }: TaxR
     setSlices(buildSliceRows(source));
     form.resetFields();
     if (editing) {
-      form.setFieldsValue({ code: editing.code, description: editing.description ?? undefined });
+      form.setFieldsValue({
+        code: editing.code,
+        description: editing.description ?? undefined,
+        saveAsDraft: editing.status === 'Draft',
+      });
     } else if (cloneFrom) {
       // Suggest a fresh code; user adjusts. Date intentionally blank for the new version.
       form.setFieldsValue({ description: cloneFrom.description ?? undefined });
@@ -110,7 +115,7 @@ export function TaxRuleSetFormDrawer({ open, editing, cloneFrom, onClose }: TaxR
       code: header.code,
       description: header.description ?? null,
       validFrom: toApiDate(header.validFrom ?? null) ?? '',
-      status: 'Active',
+      status: header.saveAsDraft ? 'Draft' : 'Active',
       brackets,
     });
     if (!parsed.success) {
@@ -162,6 +167,13 @@ export function TaxRuleSetFormDrawer({ open, editing, cloneFrom, onClose }: TaxR
           <Input placeholder="e.g. Fiji statutory PAYE/SRT/ECAL — 2027 tax year" />
         </Form.Item>
         <EffectiveDateField showVersioningNote={false} />
+        <Form.Item
+          name="saveAsDraft"
+          valuePropName="checked"
+          tooltip="A draft is saved but not yet applied; it doesn't supersede the active rule set until activated."
+        >
+          <Checkbox>Save as draft (don't activate yet)</Checkbox>
+        </Form.Item>
       </Form>
 
       <Tabs

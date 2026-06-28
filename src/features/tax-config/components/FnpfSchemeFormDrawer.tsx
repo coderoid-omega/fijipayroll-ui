@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { App as AntApp, Alert, Col, Form, InputNumber, Row } from 'antd';
+import { App as AntApp, Alert, Checkbox, Col, Form, InputNumber, Row } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { EffectiveDateField, FormDrawer } from '@/components';
 import { fromApiDate, toApiDate } from '@/lib/date';
@@ -16,7 +16,10 @@ interface FnpfSchemeFormDrawerProps {
   onClose: () => void;
 }
 
-type FormShape = Omit<FnpfSchemeWrite, 'validFrom' | 'status'> & { validFrom?: Dayjs };
+type FormShape = Omit<FnpfSchemeWrite, 'validFrom' | 'status'> & {
+  validFrom?: Dayjs;
+  saveAsDraft?: boolean;
+};
 
 function toForm(s: FnpfScheme, withDate: boolean): FormShape {
   return {
@@ -26,6 +29,8 @@ function toForm(s: FnpfScheme, withDate: boolean): FormShape {
     voluntaryPct: s.voluntaryPct ?? 0,
     employerExcessExemptPct: s.employerExcessExemptPct,
     wageCeiling: s.wageCeiling ?? null,
+    // Editing a Draft keeps it a draft by default; new versions activate by default.
+    saveAsDraft: withDate ? s.status === 'Draft' : false,
   };
 }
 
@@ -60,8 +65,13 @@ export function FnpfSchemeFormDrawer({ open, editing, cloneFrom, onClose }: Fnpf
       return;
     }
     const parsed = fnpfSchemeWriteSchema.safeParse({
-      ...values,
       validFrom: toApiDate(values.validFrom ?? null) ?? '',
+      employeePct: values.employeePct,
+      employerPct: values.employerPct,
+      voluntaryPct: values.voluntaryPct,
+      employerExcessExemptPct: values.employerExcessExemptPct,
+      wageCeiling: values.wageCeiling ?? null,
+      status: values.saveAsDraft ? 'Draft' : 'Active',
     });
     if (!parsed.success) {
       message.error(parsed.error.issues[0]?.message ?? 'Please fix the highlighted fields');
@@ -142,6 +152,13 @@ export function FnpfSchemeFormDrawer({ open, editing, cloneFrom, onClose }: Fnpf
           </Col>
         </Row>
         <EffectiveDateField showVersioningNote={!isEdit} />
+        <Form.Item
+          name="saveAsDraft"
+          valuePropName="checked"
+          tooltip="A draft is saved but not yet applied; it doesn't supersede the active scheme until activated."
+        >
+          <Checkbox>Save as draft (don't activate yet)</Checkbox>
+        </Form.Item>
       </Form>
     </FormDrawer>
   );
