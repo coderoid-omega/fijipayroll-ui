@@ -5,6 +5,8 @@ import { RouteError } from './routes/RouteError';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { CompaniesListPage } from '@/features/companies/pages/CompaniesListPage';
 import { PayElementsPage } from '@/features/pay-elements/pages/PayElementsPage';
+import { TaxConfigPage } from '@/features/tax-config/pages/TaxConfigPage';
+import { FnpfSchemePage } from '@/features/tax-config/pages/FnpfSchemePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -38,14 +40,8 @@ export const router = createBrowserRouter([
             path: 'pay-calendar',
             element: <PlaceholderPage path="/pay-calendar" epic="Epic 5 — Pay calendar & org lookups" />,
           },
-          {
-            path: 'tax-config',
-            element: <PlaceholderPage path="/tax-config" epic="Epic 4 — Tax configuration (read-mostly)" />,
-          },
-          {
-            path: 'fnpf-schemes',
-            element: <PlaceholderPage path="/fnpf-schemes" epic="Epic 4 — FNPF scheme (read-mostly)" />,
-          },
+          { path: 'tax-config', element: <TaxConfigPage /> },
+          { path: 'fnpf-schemes', element: <FnpfSchemePage /> },
           {
             path: 'org-lookups',
             element: <PlaceholderPage path="/org-lookups" epic="Epic 5 — Departments / Offices / Occupations" />,
