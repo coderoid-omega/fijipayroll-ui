@@ -255,6 +255,29 @@ export interface FnpfScheme {
   status: 'Active' | 'Superseded';
 }
 
+// ---- statutory (write) ----
+
+export type TaxBracketWrite = Omit<TaxBracket, 'id'>;
+
+export interface TaxRuleSetWrite {
+  code: string;
+  description?: string | null;
+  validFrom: string;
+  /** Active supersedes the current active set; Draft is editable and not yet applied. */
+  status?: 'Draft' | 'Active';
+  brackets: TaxBracketWrite[];
+}
+
+export interface FnpfSchemeWrite {
+  validFrom: string;
+  employeePct: number;
+  employerPct: number;
+  voluntaryPct?: number;
+  employerExcessExemptPct: number;
+  wageCeiling?: number | null;
+  status?: 'Draft' | 'Active';
+}
+
 // ---- calendar ----
 
 export interface PayFrequency {

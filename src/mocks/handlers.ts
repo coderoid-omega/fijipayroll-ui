@@ -12,8 +12,12 @@ import type {
   CompanyWrite,
   Department,
   DepartmentWrite,
+  FnpfScheme,
+  FnpfSchemeWrite,
   PayElement,
   PayElementWrite,
+  TaxRuleSet,
+  TaxRuleSetWrite,
 } from '@/types/api';
 import {
   companies,
@@ -311,6 +315,70 @@ export const handlers = [
     return HttpResponse.json(found);
   }),
 
+  http.post(url('/tax-rule-sets'), async ({ request }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const body = (await request.json()) as TaxRuleSetWrite;
+    if (!body.code || !body.validFrom || !body.brackets?.length) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: {
+          ...(body.code ? {} : { code: ['Code is required'] }),
+          ...(body.validFrom ? {} : { validFrom: ['Effective-from date is required'] }),
+          ...(body.brackets?.length ? {} : { brackets: ['At least one bracket is required'] }),
+        },
+      });
+    }
+    if (taxRuleSets.some((t) => t.code.toLowerCase() === body.code.toLowerCase())) {
+      return problem(409, 'TAX_RULE_SET_CODE_DUPLICATE', 'A rule set with this code already exists');
+    }
+    const status = body.status ?? 'Active';
+    // Activating supersedes the current active set (stamp validTo, mark immutable).
+    if (status === 'Active') {
+      taxRuleSets.forEach((t) => {
+        if (t.status === 'Active') {
+          t.status = 'Superseded';
+          t.validTo = body.validFrom;
+        }
+      });
+    }
+    const created: TaxRuleSet = {
+      id: newId('a'),
+      code: body.code,
+      description: body.description ?? null,
+      validFrom: body.validFrom,
+      validTo: null,
+      status,
+      brackets: body.brackets.map((b, i) => ({ ...b, id: newId('d') + i })),
+    };
+    taxRuleSets.push(created);
+    return HttpResponse.json(created, {
+      status: 201,
+      headers: { Location: url(`/tax-rule-sets/${created.id}`) },
+    });
+  }),
+
+  http.put(url('/tax-rule-sets/:id'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const idx = taxRuleSets.findIndex((t) => t.id === params.id);
+    if (idx === -1) return problem(404, 'TAX_RULE_SET_NOT_FOUND', 'Tax rule set not found');
+    const existing = taxRuleSets[idx]!;
+    if (existing.status === 'Superseded') {
+      return problem(409, 'TAX_RULE_SET_IMMUTABLE', 'A superseded rule set is immutable');
+    }
+    const body = (await request.json()) as TaxRuleSetWrite;
+    const updated: TaxRuleSet = {
+      ...existing,
+      code: body.code,
+      description: body.description ?? null,
+      validFrom: body.validFrom,
+      status: body.status ?? existing.status,
+      brackets: body.brackets.map((b, i) => ({ ...b, id: newId('d') + i })),
+    };
+    taxRuleSets[idx] = updated;
+    return HttpResponse.json(updated);
+  }),
+
   http.get(url('/fnpf-schemes'), async ({ request }) => {
     await delay();
     if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
@@ -319,6 +387,77 @@ export const handlers = [
       ? fnpfSchemes.filter((s) => s.validFrom <= asOf && (!s.validTo || s.validTo >= asOf))
       : fnpfSchemes;
     return HttpResponse.json(list);
+  }),
+
+  http.get(url('/fnpf-schemes/:id'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const found = fnpfSchemes.find((s) => s.id === params.id);
+    if (!found) return problem(404, 'FNPF_SCHEME_NOT_FOUND', 'FNPF scheme not found');
+    return HttpResponse.json(found);
+  }),
+
+  http.post(url('/fnpf-schemes'), async ({ request }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const body = (await request.json()) as FnpfSchemeWrite;
+    if (!body.validFrom || body.employeePct == null || body.employerPct == null) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: {
+          ...(body.validFrom ? {} : { validFrom: ['Effective-from date is required'] }),
+          ...(body.employeePct != null ? {} : { employeePct: ['Employee % is required'] }),
+          ...(body.employerPct != null ? {} : { employerPct: ['Employer % is required'] }),
+        },
+      });
+    }
+    const status = body.status ?? 'Active';
+    if (status === 'Active') {
+      fnpfSchemes.forEach((s) => {
+        if (s.status === 'Active') {
+          s.status = 'Superseded';
+          s.validTo = body.validFrom;
+        }
+      });
+    }
+    const created: FnpfScheme = {
+      id: newId('b'),
+      validFrom: body.validFrom,
+      validTo: null,
+      employeePct: body.employeePct,
+      employerPct: body.employerPct,
+      voluntaryPct: body.voluntaryPct ?? 0,
+      employerExcessExemptPct: body.employerExcessExemptPct,
+      wageCeiling: body.wageCeiling ?? null,
+      status: status === 'Draft' ? 'Superseded' : 'Active',
+    };
+    // Note: FnpfScheme.status enum is Active|Superseded; a Draft is held as non-active here.
+    fnpfSchemes.push(created);
+    return HttpResponse.json(created, {
+      status: 201,
+      headers: { Location: url(`/fnpf-schemes/${created.id}`) },
+    });
+  }),
+
+  http.put(url('/fnpf-schemes/:id'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const idx = fnpfSchemes.findIndex((s) => s.id === params.id);
+    if (idx === -1) return problem(404, 'FNPF_SCHEME_NOT_FOUND', 'FNPF scheme not found');
+    const existing = fnpfSchemes[idx]!;
+    if (existing.status === 'Superseded') {
+      return problem(409, 'FNPF_SCHEME_IMMUTABLE', 'A superseded scheme is immutable');
+    }
+    const body = (await request.json()) as FnpfSchemeWrite;
+    fnpfSchemes[idx] = {
+      ...existing,
+      validFrom: body.validFrom,
+      employeePct: body.employeePct,
+      employerPct: body.employerPct,
+      voluntaryPct: body.voluntaryPct ?? 0,
+      employerExcessExemptPct: body.employerExcessExemptPct,
+      wageCeiling: body.wageCeiling ?? null,
+    };
+    return HttpResponse.json(fnpfSchemes[idx]);
   }),
 
   // ---------------- PAY CALENDAR (company-scoped) ----------------

@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
+import type { FnpfSchemeWrite, TaxRuleSetWrite } from '@/types/api';
 import { taxConfigApi } from './taxConfigApi';
 
 /** Statutory config is reference data — cache generously. */
@@ -27,5 +28,39 @@ export function useFnpfSchemes(asOfDate?: string) {
     queryKey: queryKeys.fnpfSchemes.list(asOfDate),
     queryFn: () => taxConfigApi.listFnpfSchemes(asOfDate),
     staleTime: STATUTORY_STALE,
+  });
+}
+
+export function useCreateTaxRuleSet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: TaxRuleSetWrite) => taxConfigApi.createTaxRuleSet(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.taxRuleSets.all() }),
+  });
+}
+
+export function useUpdateTaxRuleSet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: TaxRuleSetWrite }) =>
+      taxConfigApi.updateTaxRuleSet(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.taxRuleSets.all() }),
+  });
+}
+
+export function useCreateFnpfScheme() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: FnpfSchemeWrite) => taxConfigApi.createFnpfScheme(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fnpfSchemes.all() }),
+  });
+}
+
+export function useUpdateFnpfScheme() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: FnpfSchemeWrite }) =>
+      taxConfigApi.updateFnpfScheme(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fnpfSchemes.all() }),
   });
 }

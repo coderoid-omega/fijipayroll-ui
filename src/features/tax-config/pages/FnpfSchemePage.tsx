@@ -1,21 +1,28 @@
-import { useMemo } from 'react';
-import { Alert, Card } from 'antd';
+import { useMemo, useState } from 'react';
+import { Alert, Button, Card, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Tag } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { DataTable, PageHeader } from '@/components';
+import { useAuth } from '@/app/providers/AuthContext';
 import { formatDate } from '@/lib/date';
 import { formatMoney, formatPercent } from '@/lib/money';
 import type { FnpfScheme } from '@/types/api';
 import { useFnpfSchemes } from '../api/hooks';
+import { FnpfSchemeFormDrawer } from '../components/FnpfSchemeFormDrawer';
 
 /** FNPF schemes — Epic 4.2. Effective-dated employee/employer %, excess-exempt %; read-only. */
 export function FnpfSchemePage() {
   const { data, isLoading, isError, error, refetch } = useFnpfSchemes();
+  const { me } = useAuth();
+  const canEdit = me?.permissions?.includes('tax-config:write') ?? false;
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const schemes = useMemo(
     () => [...(data ?? [])].sort((a, b) => (a.validFrom < b.validFrom ? 1 : -1)),
     [data],
   );
+
+  const activeScheme = useMemo(() => schemes.find((s) => s.status === 'Active'), [schemes]);
 
   const columns: ColumnsType<FnpfScheme> = [
     {
@@ -81,6 +88,13 @@ export function FnpfSchemePage() {
         title="FNPF Scheme"
         subtitle="Fiji National Provident Fund contribution rates — effective-dated, tenant-wide."
         breadcrumbs={[{ title: 'Home', href: '/' }, { title: 'FNPF Scheme' }]}
+        extra={
+          canEdit ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
+              New version
+            </Button>
+          ) : undefined
+        }
       />
 
       <Alert
@@ -102,6 +116,12 @@ export function FnpfSchemePage() {
           emptyText="No FNPF schemes configured"
         />
       </Card>
+
+      <FnpfSchemeFormDrawer
+        open={drawerOpen}
+        cloneFrom={activeScheme}
+        onClose={() => setDrawerOpen(false)}
+      />
     </>
   );
 }

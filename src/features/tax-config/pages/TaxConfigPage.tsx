@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Alert, Card, Descriptions, Select, Space, Spin, Tabs, Tag } from 'antd';
+import { Alert, Button, Card, Descriptions, Select, Space, Spin, Tabs, Tag } from 'antd';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { PageHeader, QueryError } from '@/components';
 import { formatDate } from '@/lib/date';
+import { useAuth } from '@/app/providers/AuthContext';
 import type { Levy, TaxBracket, TaxRuleSet, TaxType } from '@/types/api';
 import { useTaxRuleSets } from '../api/hooks';
 import { BracketsTable } from '../components/BracketsTable';
+import { TaxRuleSetFormDrawer } from '../components/TaxRuleSetFormDrawer';
 
 function statusColor(status: TaxRuleSet['status']): string {
   return status === 'Active' ? 'green' : status === 'Draft' ? 'gold' : 'default';
@@ -17,7 +20,10 @@ function slice(brackets: TaxBracket[], levy: Levy, taxType: TaxType): TaxBracket
 /** Tax rule sets — Epic 4.1. Effective-dated PAYE/SRT/ECAL bands; read-only (tenant-wide). */
 export function TaxConfigPage() {
   const { data, isLoading, isError, error, refetch } = useTaxRuleSets();
+  const { me } = useAuth();
+  const canEdit = me?.permissions?.includes('tax-config:write') ?? false;
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [drawer, setDrawer] = useState<{ mode: 'new' | 'edit' } | null>(null);
 
   const ruleSets = useMemo(
     () =>
@@ -52,15 +58,27 @@ export function TaxConfigPage() {
         breadcrumbs={[{ title: 'Home', href: '/' }, { title: 'Tax Configuration' }]}
         extra={
           ruleSets.length > 0 ? (
-            <Select
-              value={selected?.id}
-              style={{ minWidth: 260 }}
-              onChange={setSelectedId}
-              options={ruleSets.map((r) => ({
-                value: r.id,
-                label: `${r.code} · from ${formatDate(r.validFrom)}`,
-              }))}
-            />
+            <Space wrap>
+              <Select
+                value={selected?.id}
+                style={{ minWidth: 260 }}
+                onChange={setSelectedId}
+                options={ruleSets.map((r) => ({
+                  value: r.id,
+                  label: `${r.code} · from ${formatDate(r.validFrom)}`,
+                }))}
+              />
+              {canEdit && selected?.status === 'Draft' && (
+                <Button icon={<EditOutlined />} onClick={() => setDrawer({ mode: 'edit' })}>
+                  Edit draft
+                </Button>
+              )}
+              {canEdit && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawer({ mode: 'new' })}>
+                  New version
+                </Button>
+              )}
+            </Space>
           ) : undefined
         }
       />
@@ -69,8 +87,12 @@ export function TaxConfigPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Read-only statutory configuration"
-        description="These national rules are effective-dated and versioned; historical runs always re-resolve to the rule set that applied on their pay date. Editing creates a new version — a write workflow will be added to the API contract when statutory edits are enabled."
+        message="Effective-dated statutory configuration"
+        description={
+          canEdit
+            ? 'These national rules are effective-dated and versioned. Creating a new version supersedes the current one from its effective date; historical runs always re-resolve to the rule set that applied on their pay date, so past results never change.'
+            : 'These national rules are effective-dated and versioned; historical runs always re-resolve to the rule set that applied on their pay date. Editing requires the tax-config:write permission.'
+        }
       />
 
       {isLoading ? (
@@ -103,6 +125,13 @@ export function TaxConfigPage() {
       ) : (
         <Space>No tax rule sets configured.</Space>
       )}
+
+      <TaxRuleSetFormDrawer
+        open={drawer !== null}
+        editing={drawer?.mode === 'edit' ? selected : undefined}
+        cloneFrom={drawer?.mode === 'new' ? selected : undefined}
+        onClose={() => setDrawer(null)}
+      />
     </>
   );
 }
