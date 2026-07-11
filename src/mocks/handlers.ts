@@ -14,6 +14,10 @@ import type {
   DepartmentWrite,
   FnpfScheme,
   FnpfSchemeWrite,
+  Lookup,
+  LookupWrite,
+  Office,
+  OfficeWrite,
   PayElement,
   PayElementWrite,
   TaxRuleSet,
@@ -573,9 +577,72 @@ export const orgLookupsHandlers: RequestHandler[] = [
     return HttpResponse.json(offices.filter((o) => o.companyId === companyId));
   }),
 
+  http.post(url('/offices'), async ({ request }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!companyId) return problem(400, 'COMPANY_HEADER_REQUIRED', 'X-Company-Id header is required');
+    const body = (await request.json()) as OfficeWrite;
+    if (!body.code || !body.name) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: {
+          ...(body.code ? {} : { code: ['Code is required'] }),
+          ...(body.name ? {} : { name: ['Name is required'] }),
+        },
+      });
+    }
+    if (offices.some((o) => o.companyId === companyId && o.code.toLowerCase() === body.code.toLowerCase())) {
+      return problem(409, 'OFFICE_CODE_DUPLICATE', `An office with code '${body.code}' already exists for this company.`);
+    }
+    const created: Office = { id: newId('of'), companyId, status: 'Active', code: body.code, name: body.name };
+    offices.push(created);
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.put(url('/offices/:id'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = offices.findIndex((o) => o.id === params.id && o.companyId === companyId);
+    if (idx === -1) return problem(404, 'OFFICE_NOT_FOUND', 'Office not found');
+    const body = (await request.json()) as OfficeWrite;
+    offices[idx] = { ...offices[idx]!, ...body };
+    return HttpResponse.json(offices[idx]);
+  }),
+
   http.get(url('/occupations'), async () => {
     await delay();
     return HttpResponse.json(occupations);
+  }),
+
+  http.post(url('/occupations'), async ({ request }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const body = (await request.json()) as LookupWrite;
+    if (!body.code || !body.name) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: {
+          ...(body.code ? {} : { code: ['Code is required'] }),
+          ...(body.name ? {} : { name: ['Name is required'] }),
+        },
+      });
+    }
+    if (occupations.some((o) => o.code.toLowerCase() === body.code.toLowerCase())) {
+      return problem(409, 'OCCUPATION_CODE_DUPLICATE', `An occupation with code '${body.code}' already exists.`);
+    }
+    const created: Lookup = { id: newId('oc'), code: body.code, name: body.name };
+    occupations.push(created);
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.put(url('/occupations/:id'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const idx = occupations.findIndex((o) => o.id === params.id);
+    if (idx === -1) return problem(404, 'OCCUPATION_NOT_FOUND', 'Occupation not found');
+    const body = (await request.json()) as LookupWrite;
+    occupations[idx] = { ...occupations[idx]!, ...body };
+    return HttpResponse.json(occupations[idx]);
   }),
 
   http.get(url('/provinces'), async () => {

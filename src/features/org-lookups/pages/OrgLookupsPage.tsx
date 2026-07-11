@@ -7,6 +7,8 @@ import { useTenantCompany } from '@/app/providers/TenantCompanyContext';
 import type { Department, Lookup, Office } from '@/types/api';
 import { useDepartments, useOccupations, useOffices } from '../api/hooks';
 import { DepartmentFormDrawer } from '../components/DepartmentFormDrawer';
+import { OfficeFormDrawer } from '../components/OfficeFormDrawer';
+import { OccupationFormDrawer } from '../components/OccupationFormDrawer';
 
 function statusTag(status: 'Active' | 'Inactive') {
   return <Tag color={status === 'Active' ? 'green' : 'default'}>{status}</Tag>;
@@ -95,6 +97,18 @@ function DepartmentsTab({ companyId }: { companyId: string }) {
 
 function OfficesTab({ companyId }: { companyId: string }) {
   const { data, isLoading, isError, error, refetch } = useOffices(companyId);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<Office | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setDrawerOpen(true);
+  };
+  const openEdit = (office: Office) => {
+    setEditing(office);
+    setDrawerOpen(true);
+  };
+
   const columns: ColumnsType<Office> = [
     { title: 'Code', dataIndex: 'code', key: 'code', width: 120, render: (c) => <b>{c}</b> },
     { title: 'Name', dataIndex: 'name', key: 'name' },
@@ -105,44 +119,107 @@ function OfficesTab({ companyId }: { companyId: string }) {
       width: 110,
       render: (s: Office['status']) => statusTag(s),
     },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_: unknown, row) => (
+        <Button type="link" size="small" onClick={() => openEdit(row)}>
+          Edit
+        </Button>
+      ),
+    },
   ];
   return (
-    <Card styles={{ body: { padding: 0 } }}>
-      <DataTable<Office>
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        onRetry={() => refetch()}
-        emptyText="No offices yet"
+    <>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          New office
+        </Button>
+      </Space>
+      <Card styles={{ body: { padding: 0 } }}>
+        <DataTable<Office>
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => refetch()}
+          emptyText="No offices yet"
+          emptyAction={
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              New office
+            </Button>
+          }
+        />
+      </Card>
+      <OfficeFormDrawer
+        open={drawerOpen}
+        companyId={companyId}
+        editing={editing}
+        onClose={() => setDrawerOpen(false)}
       />
-    </Card>
+    </>
   );
 }
 
 function OccupationsTab() {
   const { data, isLoading, isError, error, refetch } = useOccupations();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<Lookup | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setDrawerOpen(true);
+  };
+  const openEdit = (occ: Lookup) => {
+    setEditing(occ);
+    setDrawerOpen(true);
+  };
+
   const columns: ColumnsType<Lookup> = [
     { title: 'Code', dataIndex: 'code', key: 'code', width: 120, render: (c) => <b>{c}</b> },
     { title: 'Name', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_: unknown, row) => (
+        <Button type="link" size="small" onClick={() => openEdit(row)}>
+          Edit
+        </Button>
+      ),
+    },
   ];
   return (
-    <Card styles={{ body: { padding: 0 } }}>
-      <DataTable<Lookup>
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        onRetry={() => refetch()}
-        emptyText="No occupations defined"
-      />
-    </Card>
+    <>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          New occupation
+        </Button>
+      </Space>
+      <Card styles={{ body: { padding: 0 } }}>
+        <DataTable<Lookup>
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => refetch()}
+          emptyText="No occupations defined"
+          emptyAction={
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              New occupation
+            </Button>
+          }
+        />
+      </Card>
+      <OccupationFormDrawer open={drawerOpen} editing={editing} onClose={() => setDrawerOpen(false)} />
+    </>
   );
 }
 
-/** Org lookups — Epic 5.2. Departments (CRUD) + Offices & Occupations (read). */
+/** Org lookups — Epic 5.2. Departments, Offices & Occupations (all CRUD). */
 export function OrgLookupsPage() {
   const { activeCompanyId } = useTenantCompany();
 

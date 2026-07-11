@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
-import type { DepartmentWrite } from '@/types/api';
+import type { DepartmentWrite, LookupWrite, OfficeWrite } from '@/types/api';
 import { orgApi } from './orgApi';
 
 export function useDepartments(companyId: string) {
@@ -36,10 +36,43 @@ export function useOffices(companyId: string) {
   });
 }
 
+export function useCreateOffice(companyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: OfficeWrite) => orgApi.createOffice(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.offices(companyId) }),
+  });
+}
+
+export function useUpdateOffice(companyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: OfficeWrite }) => orgApi.updateOffice(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.offices(companyId) }),
+  });
+}
+
 export function useOccupations() {
   return useQuery({
     queryKey: queryKeys.occupations(),
     queryFn: () => orgApi.listOccupations(),
     staleTime: 60 * 60_000,
+  });
+}
+
+export function useCreateOccupation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: LookupWrite) => orgApi.createOccupation(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.occupations() }),
+  });
+}
+
+export function useUpdateOccupation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: LookupWrite }) =>
+      orgApi.updateOccupation(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.occupations() }),
   });
 }

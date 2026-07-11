@@ -326,6 +326,17 @@ export interface Office {
   status: ActiveStatus;
 }
 
+export interface OfficeWrite {
+  code: string;
+  name: string;
+}
+
+/** Create/update payload for a tenant-wide reference lookup (e.g. occupation). */
+export interface LookupWrite {
+  code: string;
+  name: string;
+}
+
 // ---- employee (read; stretch) ----
 
 export interface EmployeeSummary {
