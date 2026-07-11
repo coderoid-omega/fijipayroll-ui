@@ -1,16 +1,19 @@
 /**
- * Conditionally start the Mock Service Worker. CLAUDE.md §6: the whole app runs on mocks today;
- * as each real endpoint lands, flip MSW off (per route or globally via VITE_ENABLE_MSW=false).
+ * Conditionally start the Mock Service Worker. CLAUDE.md §6: the app runs on mocks, and as each
+ * real endpoint lands we flip that resource to the real API via VITE_MSW_LIVE_RESOURCES (per-route
+ * toggle) — or turn the whole layer off with VITE_ENABLE_MSW=false.
  */
 export async function enableMocking(): Promise<void> {
   if (import.meta.env.VITE_ENABLE_MSW !== 'true') return;
 
-  const { worker } = await import('./browser');
+  const { worker, liveResources } = await import('./browser');
   await worker.start({
-    // Don't warn for requests we intentionally don't mock (assets, etc.).
+    // Live resources (and assets) are intentionally unmocked — let them reach the network/proxy.
     onUnhandledRequest: 'bypass',
     quiet: false,
   });
+
+  const live = liveResources.size ? [...liveResources].join(', ') : 'none';
   // eslint-disable-next-line no-console
-  console.info('[fiji-payroll] MSW mocking enabled — running without a backend.');
+  console.info(`[fiji-payroll] MSW enabled — mocking all resources except live: [${live}].`);
 }

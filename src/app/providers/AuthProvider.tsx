@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/apiClient';
+import { api, AUTH_EXPIRED_EVENT } from '@/lib/apiClient';
 import { session } from '@/lib/session';
 import { queryKeys } from '@/lib/queryKeys';
 import type { LoginRequest, LoginResponse, Me } from '@/types/api';
@@ -40,6 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session.clear();
     setToken(null);
     queryClient.clear();
+  }, [queryClient]);
+
+  // A 401 on any authenticated request (expired/invalid token) drops us back to the login screen.
+  // The interceptor already cleared the session; here we clear the in-memory token so the guard runs.
+  useEffect(() => {
+    const onExpired = () => {
+      setToken(null);
+      queryClient.clear();
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(

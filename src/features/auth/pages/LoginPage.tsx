@@ -13,7 +13,7 @@ interface LocationState {
   from?: { pathname: string };
 }
 
-/** Mock-backed login (Epic 1.1). Demo credentials: ADMIN001 / password. */
+/** Login (Epic 1) — wired to the real API. Seeded demo credentials: ADMIN001 / password. */
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
@@ -101,7 +101,7 @@ export function LoginPage() {
           type="secondary"
           style={{ fontSize: 12, textAlign: 'center', marginTop: 16, marginBottom: 0 }}
         >
-          Demo (mock): <b>ADMIN001</b> / <b>password</b>
+          Demo: <b>ADMIN001</b> / <b>password</b>
         </Typography.Paragraph>
       </Card>
     </div>

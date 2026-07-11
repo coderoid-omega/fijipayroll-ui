@@ -5,7 +5,7 @@
  * Conventions honoured: JWT bearer + X-Company-Id scope (D11), RFC 7807 problem+json errors
  * with stable errorCode, {items,total,page,pageSize} paging, bare arrays for reference lists.
  */
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, type RequestHandler } from 'msw';
 import { COMPANY_HEADER } from '@/lib/constants';
 import type {
   Company,
@@ -101,7 +101,10 @@ function matchesSearch<T extends object>(item: T, search: string | null, fields:
 const LATENCY_MS = 250;
 const delay = () => new Promise((r) => setTimeout(r, LATENCY_MS));
 
-export const handlers = [
+// Handlers are grouped per resource so integration can flip a single resource to the real API
+// (see browser.ts + VITE_MSW_LIVE_RESOURCES) while the rest stay mocked.
+
+export const authHandlers: RequestHandler[] = [
   // ---------------- AUTH ----------------
   http.post(url('/auth/login'), async ({ request }) => {
     await delay();
@@ -129,6 +132,9 @@ export const handlers = [
     return HttpResponse.json(me);
   }),
 
+];
+
+export const companiesHandlers: RequestHandler[] = [
   // ---------------- COMPANIES (D11) ----------------
   http.get(url('/companies'), async ({ request }) => {
     await delay();
@@ -212,6 +218,9 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+];
+
+export const payElementsHandlers: RequestHandler[] = [
   // ---------------- PAY GROUPS & ELEMENTS ----------------
   http.get(url('/pay-groups'), async () => {
     await delay();
@@ -296,6 +305,9 @@ export const handlers = [
     return HttpResponse.json(updated);
   }),
 
+];
+
+export const statutoryHandlers: RequestHandler[] = [
   // ---------------- STATUTORY (tenant-wide) ----------------
   http.get(url('/tax-rule-sets'), async ({ request }) => {
     await delay();
@@ -481,6 +493,9 @@ export const handlers = [
     return HttpResponse.json(fnpfSchemes[idx]);
   }),
 
+];
+
+export const payCalendarHandlers: RequestHandler[] = [
   // ---------------- PAY CALENDAR (company-scoped) ----------------
   http.get(url('/pay-frequencies'), async ({ request }) => {
     await delay();
@@ -503,6 +518,9 @@ export const handlers = [
     return HttpResponse.json(list);
   }),
 
+];
+
+export const orgLookupsHandlers: RequestHandler[] = [
   // ---------------- ORG LOOKUPS ----------------
   http.get(url('/departments'), async ({ request }) => {
     await delay();
@@ -570,6 +588,9 @@ export const handlers = [
     return HttpResponse.json(ethnicOrigins);
   }),
 
+];
+
+export const employeesHandlers: RequestHandler[] = [
   // ---------------- EMPLOYEES (read; stretch) ----------------
   http.get(url('/employees'), async ({ request }) => {
     await delay();
@@ -590,3 +611,21 @@ export const handlers = [
     return HttpResponse.json(found);
   }),
 ];
+
+/**
+ * Handlers keyed by resource. A resource listed in VITE_MSW_LIVE_RESOURCES is dropped from the
+ * worker so its requests fall through to the real API (see browser.ts). The keys match the epic
+ * names in the integration plan.
+ */
+export const handlersByResource: Record<string, RequestHandler[]> = {
+  auth: authHandlers,
+  companies: companiesHandlers,
+  'pay-elements': payElementsHandlers,
+  statutory: statutoryHandlers,
+  'pay-calendar': payCalendarHandlers,
+  'org-lookups': orgLookupsHandlers,
+  employees: employeesHandlers,
+};
+
+/** All mock handlers (every resource). Used by tests and as the default full-mock set. */
+export const handlers: RequestHandler[] = Object.values(handlersByResource).flat();

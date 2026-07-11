@@ -14,6 +14,13 @@ import { ApiError } from './apiError';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
+/**
+ * Dispatched when an authenticated request comes back 401 (token invalid/expired). AuthProvider
+ * listens for it and drops the in-memory token so the router guard redirects to /login — clearing
+ * localStorage alone doesn't update React state, so a stale token would otherwise linger until reload.
+ */
+export const AUTH_EXPIRED_EVENT = 'fp:auth-expired';
+
 export const http: AxiosInstance = axios.create({
   baseURL,
   headers: { Accept: 'application/json' },
@@ -41,8 +48,13 @@ http.interceptors.response.use(
       }
       const { status, data } = error.response;
       if (status === 401) {
-        // Token invalid/expired — drop it. The router guard redirects to /login.
+        // Token invalid/expired — drop it. Only signal an expiry when we actually had a token
+        // (so a failed login attempt on /login doesn't trigger a redirect loop).
+        const hadToken = Boolean(session.getToken());
         session.clear();
+        if (hadToken && typeof window !== 'undefined') {
+          window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+        }
       }
       const problem =
         data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
