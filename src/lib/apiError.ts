@@ -35,7 +35,9 @@ export class ApiError extends Error {
     return new ApiError({
       status,
       errorCode: problem.errorCode ?? `HTTP_${status}`,
-      message: problem.title ?? problem.detail ?? `Request failed (${status})`,
+      // Prefer the instance-specific `detail` (RFC 7807) — e.g. "A company with code 'MAIN' already
+      // exists." — over the generic `title` ("Conflict"). Falls back to title when detail is absent.
+      message: problem.detail ?? problem.title ?? `Request failed (${status})`,
       detail: problem.detail,
       traceId: problem.traceId,
       fieldErrors: problem.errors,
