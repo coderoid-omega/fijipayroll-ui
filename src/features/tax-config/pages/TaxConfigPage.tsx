@@ -21,7 +21,7 @@ function slice(brackets: TaxBracket[], levy: Levy, taxType: TaxType): TaxBracket
 export function TaxConfigPage() {
   const { data, isLoading, isError, error, refetch } = useTaxRuleSets();
   const { me } = useAuth();
-  const canEdit = me?.permissions?.includes('tax-config:write') ?? false;
+  const canEdit = me?.permissions?.includes('statutory.write') ?? false;
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [drawer, setDrawer] = useState<{ mode: 'new' | 'edit' } | null>(null);
 
@@ -91,7 +91,7 @@ export function TaxConfigPage() {
         description={
           canEdit
             ? 'These national rules are effective-dated and versioned. Creating a new version supersedes the current one from its effective date; historical runs always re-resolve to the rule set that applied on their pay date, so past results never change.'
-            : 'These national rules are effective-dated and versioned; historical runs always re-resolve to the rule set that applied on their pay date. Editing requires the tax-config:write permission.'
+            : 'These national rules are effective-dated and versioned; historical runs always re-resolve to the rule set that applied on their pay date. Editing requires the statutory.write permission.'
         }
       />
 

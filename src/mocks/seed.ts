@@ -103,7 +103,7 @@ export const me: Me = {
     'pay-elements:read',
     'pay-elements:write',
     'tax-config:read',
-    'tax-config:write',
+    'statutory.write',
     'employees:read',
   ],
 };

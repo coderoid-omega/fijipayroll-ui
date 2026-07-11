@@ -7,7 +7,7 @@ import type {
 } from '@/types/api';
 
 /**
- * Statutory config API (tenant-wide, effective-dated). Writes require the `tax-config:write`
+ * Statutory config API (tenant-wide, effective-dated). Writes require the `statutory.write`
  * permission; activating a new version supersedes the prior one (history stays immutable).
  */
 export const taxConfigApi = {

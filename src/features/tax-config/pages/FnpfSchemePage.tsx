@@ -14,7 +14,7 @@ import { FnpfSchemeFormDrawer } from '../components/FnpfSchemeFormDrawer';
 export function FnpfSchemePage() {
   const { data, isLoading, isError, error, refetch } = useFnpfSchemes();
   const { me } = useAuth();
-  const canEdit = me?.permissions?.includes('tax-config:write') ?? false;
+  const canEdit = me?.permissions?.includes('statutory.write') ?? false;
   const [drawer, setDrawer] = useState<{ mode: 'new' } | { mode: 'edit'; scheme: FnpfScheme } | null>(
     null,
   );
