@@ -13,7 +13,7 @@ interface LocationState {
   from?: { pathname: string };
 }
 
-/** Login (Epic 1) — wired to the real API. Seeded demo credentials: ADMIN001 / password. */
+/** Login (Epic 1) — wired to the real API. Seeded demo credentials shown in dev builds only. */
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
@@ -97,12 +97,14 @@ export function LoginPage() {
           </Button>
         </Form>
 
-        <Typography.Paragraph
-          type="secondary"
-          style={{ fontSize: 12, textAlign: 'center', marginTop: 16, marginBottom: 0 }}
-        >
-          Demo: <b>ADMIN001</b> / <b>password</b>
-        </Typography.Paragraph>
+        {import.meta.env.DEV && (
+          <Typography.Paragraph
+            type="secondary"
+            style={{ fontSize: 12, textAlign: 'center', marginTop: 16, marginBottom: 0 }}
+          >
+            Demo: <b>ADMIN001</b> / <b>password</b>
+          </Typography.Paragraph>
+        )}
       </Card>
     </div>
   );
