@@ -23,7 +23,12 @@ export function TenantCompanyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (companies.length === 0) return;
     const stillValid = activeCompanyId && companies.some((c) => c.id === activeCompanyId);
-    if (stillValid) return;
+    if (stillValid) {
+      // Re-write storage: a 401 clears it (session.clear) while this provider's in-memory state
+      // survives re-login, and the Axios interceptor reads the header value from storage.
+      session.setActiveCompanyId(activeCompanyId);
+      return;
+    }
     const fallback = companies.find((c) => c.isPrimary) ?? companies[0];
     if (fallback) {
       setActiveCompanyId(fallback.id);
