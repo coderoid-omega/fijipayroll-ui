@@ -36,6 +36,13 @@ export const companyWriteSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200),
   legalName: optionalString,
   fnpfEmployerNo: optionalString,
+  fnpfCsCode: z
+    .string()
+    .trim()
+    .max(20, 'CS code is too long')
+    .optional()
+    .or(z.literal(''))
+    .transform((v) => (v === '' ? undefined : v)),
   fnpfCheckDigit: z
     .string()
     .trim()

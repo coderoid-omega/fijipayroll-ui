@@ -132,6 +132,7 @@ export interface Company {
   legalName?: string | null;
   isPrimary: boolean;
   fnpfEmployerNo?: string | null;
+  fnpfCsCode?: string | null;
   fnpfCheckDigit?: string | null;
   tin?: string | null;
   address?: Address;
@@ -154,6 +155,7 @@ export interface CompanyWrite {
   name: string;
   legalName?: string | null;
   fnpfEmployerNo?: string | null;
+  fnpfCsCode?: string | null;
   fnpfCheckDigit?: string | null;
   tin?: string | null;
   address?: Address;

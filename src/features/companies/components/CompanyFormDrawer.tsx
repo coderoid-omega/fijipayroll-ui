@@ -41,6 +41,7 @@ function toFormValues(c: Company): CompanyFormValues {
     name: c.name,
     legalName: c.legalName ?? undefined,
     fnpfEmployerNo: c.fnpfEmployerNo ?? undefined,
+    fnpfCsCode: c.fnpfCsCode ?? undefined,
     fnpfCheckDigit: c.fnpfCheckDigit ?? undefined,
     tin: c.tin ?? undefined,
     address: {
@@ -168,7 +169,19 @@ export function CompanyFormDrawer({ open, companyId, onClose }: CompanyFormDrawe
                 <Input placeholder="FNPF-xxxxxx" />
               </Form.Item>
             </Col>
-            <Col span={4}>
+            <Col span={12}>
+              <Form.Item
+                name="fnpfCsCode"
+                label="FNPF CS code"
+                tooltip="Contribution Schedule code issued by FNPF (e.g. CS-01); identifies the schedule the company remits under."
+                rules={[zodRule(companyWriteSchema.shape.fnpfCsCode)]}
+              >
+                <Input placeholder="CS-01" maxLength={20} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item
                 name="fnpfCheckDigit"
                 label="Check digit"
@@ -178,7 +191,7 @@ export function CompanyFormDrawer({ open, companyId, onClose }: CompanyFormDrawe
                 <Input maxLength={1} />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col span={12}>
               <Form.Item name="tin" label="TIN">
                 <Input placeholder="xx-xxxxx-x-x" />
               </Form.Item>
