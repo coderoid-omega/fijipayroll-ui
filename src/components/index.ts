@@ -5,5 +5,7 @@ export type { DataTableProps, ServerPagination } from './DataTable';
 export { FormDrawer } from './FormDrawer';
 export { confirmDelete } from './ConfirmDelete';
 export { EffectiveDateField } from './EffectiveDateField';
+export { ScopeTag } from './ScopeTag';
+export type { DataScope } from './ScopeTag';
 export { QueryError } from './states/QueryError';
 export { EmptyState } from './states/EmptyState';

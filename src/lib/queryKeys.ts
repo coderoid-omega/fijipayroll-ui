@@ -47,6 +47,8 @@ export const queryKeys = {
 
   departments: (companyId: string) => ['departments', companyId] as const,
   offices: (companyId: string) => ['offices', companyId] as const,
+  companyLookups: (resource: string, companyId: string) =>
+    ['company-lookups', resource, companyId] as const,
   occupations: () => ['occupations'] as const,
   provinces: () => ['provinces'] as const,
   ethnicOrigins: () => ['ethnic-origins'] as const,

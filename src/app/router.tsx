@@ -41,6 +41,7 @@ export const router = createBrowserRouter([
           { path: 'tax-config', element: <TaxConfigPage /> },
           { path: 'fnpf-schemes', element: <FnpfSchemePage /> },
           { path: 'org-lookups', element: <OrgLookupsPage /> },
+          { path: 'org-lookups/:master', element: <OrgLookupsPage /> },
           { path: '404', element: <NotFoundPage /> },
           { path: '*', element: <Navigate to="/404" replace /> },
         ],

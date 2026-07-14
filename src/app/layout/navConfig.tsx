@@ -61,7 +61,7 @@ export const navGroups: NavGroup[] = [
     key: 'lookups',
     label: 'Org Lookups',
     items: [
-      { key: 'org-lookups', path: '/org-lookups', label: 'Departments & Offices', icon: <ApartmentOutlined /> },
+      { key: 'org-lookups', path: '/org-lookups', label: 'Org Lookups', icon: <ApartmentOutlined /> },
     ],
   },
 ];

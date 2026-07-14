@@ -339,6 +339,21 @@ export interface LookupWrite {
   name: string;
 }
 
+/** A company-scoped org-structure master (division / section / grade / level). Code is optional. */
+export interface CompanyLookup {
+  id: string;
+  companyId: string;
+  code?: string | null;
+  name: string;
+  status: ActiveStatus;
+}
+
+/** Create/update payload for a company-scoped org-structure master. Name required; code optional. */
+export interface CompanyLookupWrite {
+  code?: string | null;
+  name: string;
+}
+
 // ---- employee (read; stretch) ----
 
 export interface EmployeeSummary {

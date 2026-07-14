@@ -6,6 +6,7 @@
  */
 import type {
   Company,
+  CompanyLookup,
   Department,
   Employee,
   FnpfScheme,
@@ -281,6 +282,23 @@ export const departments: Department[] = [
 export const offices: Office[] = [
   { id: 'of000000-0000-0000-0000-000000000001', companyId: IDS.companyDemo, code: 'SUV', name: 'Suva Head Office', status: 'Active' },
   { id: 'of000000-0000-0000-0000-000000000002', companyId: IDS.companyDemo, code: 'NAD', name: 'Nadi Branch', status: 'Active' },
+];
+
+export const divisions: CompanyLookup[] = [
+  { id: 'dv000000-0000-0000-0000-000000000001', companyId: IDS.companyDemo, code: 'WD', name: 'Western Division', status: 'Active' },
+  { id: 'dv000000-0000-0000-0000-000000000002', companyId: IDS.companyDemo, code: null, name: 'Central Division', status: 'Active' },
+];
+
+export const sections: CompanyLookup[] = [
+  { id: 'se000000-0000-0000-0000-000000000001', companyId: IDS.companyDemo, code: 'PCK', name: 'Packing', status: 'Active' },
+];
+
+export const grades: CompanyLookup[] = [
+  { id: 'gr000000-0000-0000-0000-000000000001', companyId: IDS.companyDemo, code: 'G5', name: 'Grade 5', status: 'Active' },
+];
+
+export const levels: CompanyLookup[] = [
+  { id: 'lv000000-0000-0000-0000-000000000001', companyId: IDS.companyDemo, code: null, name: 'Senior', status: 'Active' },
 ];
 
 export const occupations: Lookup[] = [

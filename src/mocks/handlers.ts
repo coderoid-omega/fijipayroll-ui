@@ -9,6 +9,8 @@ import { http, HttpResponse, type RequestHandler } from 'msw';
 import { COMPANY_HEADER } from '@/lib/constants';
 import type {
   Company,
+  CompanyLookup,
+  CompanyLookupWrite,
   CompanyWrite,
   Department,
   DepartmentWrite,
@@ -28,12 +30,16 @@ import {
   departments,
   DEMO_CREDENTIALS,
   DEMO_TOKEN,
+  divisions,
   employees,
   ethnicOrigins,
   fnpfSchemes,
+  grades,
+  levels,
   me,
   occupations,
   offices,
+  sections,
   payElements,
   payFrequencies,
   payGroups,
@@ -524,6 +530,60 @@ export const payCalendarHandlers: RequestHandler[] = [
 
 ];
 
+/** Routes for one company-scoped org-structure master (division/section/grade/level) —
+ * mirrors the API: name required + unique per company; code optional + unique per company. */
+function companyLookupRoutes(
+  path: string,
+  store: CompanyLookup[],
+  slug: string,
+  label: string,
+  idPrefix: string,
+): RequestHandler[] {
+  const normalizeCode = (code?: string | null) => (code?.trim() ? code.trim() : null);
+  return [
+    http.get(url(path), async ({ request }) => {
+      await delay();
+      if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+      const companyId = activeCompanyId(request);
+      return HttpResponse.json(store.filter((x) => x.companyId === companyId));
+    }),
+
+    http.post(url(path), async ({ request }) => {
+      await delay();
+      if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+      const companyId = activeCompanyId(request);
+      if (!companyId) return problem(400, 'COMPANY_HEADER_REQUIRED', 'X-Company-Id header is required');
+      const body = (await request.json()) as CompanyLookupWrite;
+      if (!body.name?.trim()) {
+        return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+          errors: { name: ['Name is required'] },
+        });
+      }
+      const code = normalizeCode(body.code);
+      if (code && store.some((x) => x.companyId === companyId && x.code?.toLowerCase() === code.toLowerCase())) {
+        return problem(409, `${slug}_CODE_DUPLICATE`, `A ${label} with code '${code}' already exists for this company.`);
+      }
+      if (store.some((x) => x.companyId === companyId && x.name.toLowerCase() === body.name.trim().toLowerCase())) {
+        return problem(409, `${slug}_NAME_DUPLICATE`, `A ${label} named '${body.name.trim()}' already exists for this company.`);
+      }
+      const created: CompanyLookup = { id: newId(idPrefix), companyId, status: 'Active', code, name: body.name.trim() };
+      store.push(created);
+      return HttpResponse.json(created, { status: 201 });
+    }),
+
+    http.put(url(`${path}/:id`), async ({ request, params }) => {
+      await delay();
+      if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+      const companyId = activeCompanyId(request);
+      const idx = store.findIndex((x) => x.id === params.id && x.companyId === companyId);
+      if (idx === -1) return problem(404, `${slug}_NOT_FOUND`, `${label} not found`);
+      const body = (await request.json()) as CompanyLookupWrite;
+      store[idx] = { ...store[idx]!, code: normalizeCode(body.code), name: body.name?.trim() ?? store[idx]!.name };
+      return HttpResponse.json(store[idx]);
+    }),
+  ];
+}
+
 export const orgLookupsHandlers: RequestHandler[] = [
   // ---------------- ORG LOOKUPS ----------------
   http.get(url('/departments'), async ({ request }) => {
@@ -644,6 +704,11 @@ export const orgLookupsHandlers: RequestHandler[] = [
     occupations[idx] = { ...occupations[idx]!, ...body };
     return HttpResponse.json(occupations[idx]);
   }),
+
+  ...companyLookupRoutes('/divisions', divisions, 'DIVISION', 'division', 'dv'),
+  ...companyLookupRoutes('/sections', sections, 'SECTION', 'section', 'se'),
+  ...companyLookupRoutes('/grades', grades, 'GRADE', 'grade', 'gr'),
+  ...companyLookupRoutes('/levels', levels, 'LEVEL', 'level', 'lv'),
 
   http.get(url('/provinces'), async () => {
     await delay();

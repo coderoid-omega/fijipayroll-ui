@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
-import type { DepartmentWrite, LookupWrite, OfficeWrite } from '@/types/api';
-import { orgApi } from './orgApi';
+import type { CompanyLookupWrite, DepartmentWrite, LookupWrite, OfficeWrite } from '@/types/api';
+import { orgApi, type CompanyLookupResource } from './orgApi';
 
 export function useDepartments(companyId: string) {
   return useQuery({
@@ -49,6 +49,31 @@ export function useUpdateOffice(companyId: string) {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: OfficeWrite }) => orgApi.updateOffice(id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.offices(companyId) }),
+  });
+}
+
+export function useCompanyLookups(resource: CompanyLookupResource, companyId: string) {
+  return useQuery({
+    queryKey: queryKeys.companyLookups(resource, companyId),
+    queryFn: () => orgApi.listCompanyLookups(resource),
+    enabled: Boolean(companyId),
+  });
+}
+
+export function useCreateCompanyLookup(resource: CompanyLookupResource, companyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CompanyLookupWrite) => orgApi.createCompanyLookup(resource, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.companyLookups(resource, companyId) }),
+  });
+}
+
+export function useUpdateCompanyLookup(resource: CompanyLookupResource, companyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: CompanyLookupWrite }) =>
+      orgApi.updateCompanyLookup(resource, id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.companyLookups(resource, companyId) }),
   });
 }
 
