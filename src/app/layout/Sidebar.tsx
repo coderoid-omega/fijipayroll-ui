@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Layout, Menu, Typography } from 'antd';
+import { Layout, Menu, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { navGroups } from './navConfig';
@@ -16,6 +16,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { token } = theme.useToken();
 
   const items: MenuProps['items'] = useMemo(
     () =>
@@ -48,7 +49,7 @@ export function Sidebar({ collapsed }: SidebarProps) {
       collapsed={collapsed}
       trigger={null}
       theme="light"
-      style={{ borderRight: `1px solid ${brandColors.line}` }}
+      style={{ borderRight: `1px solid ${token.colorSplit}` }}
     >
       <div
         style={{
@@ -57,7 +58,7 @@ export function Sidebar({ collapsed }: SidebarProps) {
           alignItems: 'center',
           gap: 10,
           padding: '0 16px',
-          borderBottom: `1px solid ${brandColors.line}`,
+          borderBottom: `1px solid ${token.colorSplit}`,
         }}
       >
         <div

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App as AntApp, Button, Card, Form, Input, Typography } from 'antd';
+import { App as AntApp, Button, Card, Form, Input, Typography, theme } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -19,6 +19,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { message } = AntApp.useApp();
+  const { token } = theme.useToken();
   const [submitting, setSubmitting] = useState(false);
 
   const redirectTo = (location.state as LocationState | null)?.from?.pathname ?? '/';
@@ -46,7 +47,9 @@ export function LoginPage() {
         minHeight: '100vh',
         display: 'grid',
         placeItems: 'center',
+        // Brand-tinted gradient over the theme's layout background so it works in both modes.
         background: `linear-gradient(135deg, ${brandColors.primary}11, ${brandColors.teal}11)`,
+        backgroundColor: token.colorBgLayout,
         padding: 16,
       }}
     >

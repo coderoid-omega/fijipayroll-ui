@@ -6,6 +6,7 @@ export const APP_NAME = 'Fiji Payroll';
 export const STORAGE_KEYS = {
   authToken: 'fp.auth.token',
   activeCompanyId: 'fp.active-company-id',
+  themeMode: 'fp.theme-mode',
 } as const;
 
 /** HTTP header carrying the active company (brand) — D11. Tenant comes from the JWT. */

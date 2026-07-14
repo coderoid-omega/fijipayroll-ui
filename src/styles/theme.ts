@@ -61,11 +61,18 @@ export const lightTheme: ThemeConfig = {
   },
 };
 
-/** Dark variant — wired up so the app is dark-mode-ready (Epic 0.3) even if off by default. */
+/** Dark variant — selected by the Topbar mode switch (persisted via `session.getThemeMode`). */
 export const darkTheme: ThemeConfig = {
   algorithm: antdTheme.darkAlgorithm,
   token: { ...sharedTokens },
   components: {
-    Layout: { headerHeight: 56 },
+    Layout: {
+      // Match the light treatment (header/sider = container surface); AntD's default dark
+      // headerBg is the legacy navy #001529, which clashes with the dark container (#141414).
+      headerBg: '#141414',
+      headerHeight: 56,
+      headerPadding: '0 20px',
+      siderBg: '#141414',
+    },
   },
 };

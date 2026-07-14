@@ -29,6 +29,10 @@ export const session = {
   getActiveCompanyId: () => read(STORAGE_KEYS.activeCompanyId),
   setActiveCompanyId: (id: string | null) => write(STORAGE_KEYS.activeCompanyId, id),
 
+  // Device preference, not auth state — deliberately NOT wiped by clear()/logout.
+  getThemeMode: () => read(STORAGE_KEYS.themeMode),
+  setThemeMode: (mode: string) => write(STORAGE_KEYS.themeMode, mode),
+
   clear: () => {
     write(STORAGE_KEYS.authToken, null);
     write(STORAGE_KEYS.activeCompanyId, null);
