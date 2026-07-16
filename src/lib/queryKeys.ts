@@ -53,6 +53,12 @@ export const queryKeys = {
   provinces: () => ['provinces'] as const,
   ethnicOrigins: () => ['ethnic-origins'] as const,
 
+  // Employee-config lookups (Sprint 2 Epic 1) — tenant-wide, so no companyId in the key.
+  contractTypes: () => ['contract-types'] as const,
+  employmentStages: () => ['employment-stages'] as const,
+  exitReasons: () => ['exit-reasons'] as const,
+  tenantConfigLookups: (resource: string) => ['tenant-config-lookups', resource] as const,
+
   employees: {
     all: (companyId: string) => ['employees', companyId] as const,
     list: (companyId: string, params?: ListParams) =>

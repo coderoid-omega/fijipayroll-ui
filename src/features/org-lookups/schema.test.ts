@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { companyLookupWriteSchema, departmentWriteSchema } from './schema';
+import {
+  companyLookupWriteSchema,
+  contractTypeWriteSchema,
+  departmentWriteSchema,
+  employmentStageWriteSchema,
+  exitReasonWriteSchema,
+} from './schema';
 
 describe('departmentWriteSchema', () => {
   it('accepts a valid department', () => {
@@ -50,5 +56,78 @@ describe('companyLookupWriteSchema (division/section/grade/level)', () => {
 
   it('rejects invalid code characters when a code is given', () => {
     expect(companyLookupWriteSchema.safeParse({ code: 'a b', name: 'X' }).success).toBe(false);
+  });
+});
+
+describe('contractTypeWriteSchema (Sprint 2 Epic 1)', () => {
+  it('accepts a minimal contract type (flags optional)', () => {
+    expect(contractTypeWriteSchema.safeParse({ code: 'PERM', name: 'Permanent' }).success).toBe(true);
+  });
+
+  it('accepts the full shape', () => {
+    const result = contractTypeWriteSchema.safeParse({
+      code: 'FIXED',
+      name: 'Fixed-term',
+      isFixedTerm: true,
+      status: 'Active',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an unknown status', () => {
+    expect(
+      contractTypeWriteSchema.safeParse({ code: 'X', name: 'X', status: 'Archived' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('employmentStageWriteSchema (Sprint 2 Epic 1)', () => {
+  it('accepts a stage with ordinal and probation flag', () => {
+    const result = employmentStageWriteSchema.safeParse({
+      code: 'PROB',
+      name: 'Probation',
+      ordinal: 2,
+      isProbationary: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a negative ordinal', () => {
+    expect(
+      employmentStageWriteSchema.safeParse({ code: 'X', name: 'X', ordinal: -1 }).success,
+    ).toBe(false);
+  });
+});
+
+describe('exitReasonWriteSchema (Sprint 2 Epic 1 — the flags are the behaviour, D10)', () => {
+  it('accepts a full exit reason', () => {
+    const result = exitReasonWriteSchema.safeParse({
+      code: 'REDUND',
+      name: 'Redundancy',
+      initiator: 'Employer',
+      severanceEligible: true,
+      noticeRequired: true,
+      rehireEligible: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('requires an initiator', () => {
+    expect(exitReasonWriteSchema.safeParse({ code: 'RESIGN', name: 'Resignation' }).success).toBe(
+      false,
+    );
+  });
+
+  it('rejects an unknown initiator', () => {
+    expect(
+      exitReasonWriteSchema.safeParse({ code: 'X', name: 'X', initiator: 'Bogus' }).success,
+    ).toBe(false);
+  });
+
+  it('flags are optional (server defaults: severance false, notice true, rehire true)', () => {
+    expect(
+      exitReasonWriteSchema.safeParse({ code: 'RETIRE', name: 'Retirement', initiator: 'Neither' })
+        .success,
+    ).toBe(true);
   });
 });

@@ -6,16 +6,41 @@ import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined } from '@ant-design/icons';
 import { DataTable, PageHeader, ScopeTag, type DataScope } from '@/components';
 import { useTenantCompany } from '@/app/providers/TenantCompanyContext';
-import type { CompanyLookup, Department, Lookup, Office } from '@/types/api';
-import { useCompanyLookups, useDepartments, useOccupations, useOffices } from '../api/hooks';
-import type { CompanyLookupResource } from '../api/orgApi';
+import type {
+  CompanyLookup,
+  ContractType,
+  Department,
+  EmploymentStage,
+  ExitReason,
+  Lookup,
+  Office,
+} from '@/types/api';
+import {
+  useCompanyLookups,
+  useContractTypes,
+  useDepartments,
+  useEmploymentStages,
+  useExitReasons,
+  useOccupations,
+  useOffices,
+  useTenantConfigLookups,
+} from '../api/hooks';
+import type { CompanyLookupResource, TenantConfigLookupResource } from '../api/orgApi';
 import { DepartmentFormDrawer } from '../components/DepartmentFormDrawer';
 import { OfficeFormDrawer } from '../components/OfficeFormDrawer';
 import { OccupationFormDrawer } from '../components/OccupationFormDrawer';
 import { CompanyLookupFormDrawer } from '../components/CompanyLookupFormDrawer';
+import { ContractTypeFormDrawer } from '../components/ContractTypeFormDrawer';
+import { EmploymentStageFormDrawer } from '../components/EmploymentStageFormDrawer';
+import { ExitReasonFormDrawer } from '../components/ExitReasonFormDrawer';
+import { TenantConfigLookupFormDrawer } from '../components/TenantConfigLookupFormDrawer';
 
 function statusTag(status: 'Active' | 'Inactive') {
   return <Tag color={status === 'Active' ? 'green' : 'default'}>{status}</Tag>;
+}
+
+function flagTag(value: boolean) {
+  return value ? <Tag color="green">Yes</Tag> : <Tag>No</Tag>;
 }
 
 function DepartmentsTab({ companyId }: { companyId: string }) {
@@ -309,6 +334,303 @@ function OccupationsTab() {
   );
 }
 
+function ContractTypesTab() {
+  const { data, isLoading, isError, error, refetch } = useContractTypes();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<ContractType | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setDrawerOpen(true);
+  };
+  const openEdit = (row: ContractType) => {
+    setEditing(row);
+    setDrawerOpen(true);
+  };
+
+  const columns: ColumnsType<ContractType> = [
+    { title: 'Code', dataIndex: 'code', key: 'code', width: 120, render: (c) => <b>{c}</b> },
+    { title: 'Name', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Fixed-term',
+      dataIndex: 'isFixedTerm',
+      key: 'isFixedTerm',
+      width: 110,
+      render: (v: boolean) => flagTag(v),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 110,
+      render: (s: ContractType['status']) => statusTag(s),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_: unknown, row) => (
+        <Button type="link" size="small" onClick={() => openEdit(row)}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
+  return (
+    <>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          New contract type
+        </Button>
+      </Space>
+      <Card styles={{ body: { padding: 0 } }}>
+        <DataTable<ContractType>
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => refetch()}
+          emptyText="No contract types defined"
+          emptyAction={
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              New contract type
+            </Button>
+          }
+        />
+      </Card>
+      <ContractTypeFormDrawer open={drawerOpen} editing={editing} onClose={() => setDrawerOpen(false)} />
+    </>
+  );
+}
+
+function EmploymentStagesTab() {
+  const { data, isLoading, isError, error, refetch } = useEmploymentStages();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<EmploymentStage | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setDrawerOpen(true);
+  };
+  const openEdit = (row: EmploymentStage) => {
+    setEditing(row);
+    setDrawerOpen(true);
+  };
+
+  const columns: ColumnsType<EmploymentStage> = [
+    { title: 'Order', dataIndex: 'ordinal', key: 'ordinal', width: 80 },
+    { title: 'Code', dataIndex: 'code', key: 'code', width: 120, render: (c) => <b>{c}</b> },
+    { title: 'Name', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Probationary',
+      dataIndex: 'isProbationary',
+      key: 'isProbationary',
+      width: 120,
+      render: (v: boolean) => flagTag(v),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 110,
+      render: (s: EmploymentStage['status']) => statusTag(s),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_: unknown, row) => (
+        <Button type="link" size="small" onClick={() => openEdit(row)}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
+  return (
+    <>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          New employment stage
+        </Button>
+      </Space>
+      <Card styles={{ body: { padding: 0 } }}>
+        <DataTable<EmploymentStage>
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => refetch()}
+          emptyText="No employment stages defined"
+          emptyAction={
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              New employment stage
+            </Button>
+          }
+        />
+      </Card>
+      <EmploymentStageFormDrawer open={drawerOpen} editing={editing} onClose={() => setDrawerOpen(false)} />
+    </>
+  );
+}
+
+function ExitReasonsTab() {
+  const { data, isLoading, isError, error, refetch } = useExitReasons();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<ExitReason | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setDrawerOpen(true);
+  };
+  const openEdit = (row: ExitReason) => {
+    setEditing(row);
+    setDrawerOpen(true);
+  };
+
+  // The flags ARE the behaviour (D10): severance/notice logic downstream reads these columns,
+  // never the code — so the table surfaces all four flags.
+  const columns: ColumnsType<ExitReason> = [
+    { title: 'Code', dataIndex: 'code', key: 'code', width: 110, render: (c) => <b>{c}</b> },
+    { title: 'Name', dataIndex: 'name', key: 'name' },
+    { title: 'Initiated by', dataIndex: 'initiator', key: 'initiator', width: 110 },
+    {
+      title: 'Severance',
+      dataIndex: 'severanceEligible',
+      key: 'severanceEligible',
+      width: 100,
+      render: (v: boolean) => flagTag(v),
+    },
+    {
+      title: 'Notice',
+      dataIndex: 'noticeRequired',
+      key: 'noticeRequired',
+      width: 90,
+      render: (v: boolean) => flagTag(v),
+    },
+    {
+      title: 'Rehire',
+      dataIndex: 'rehireEligible',
+      key: 'rehireEligible',
+      width: 90,
+      render: (v: boolean) => flagTag(v),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (s: ExitReason['status']) => statusTag(s),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_: unknown, row) => (
+        <Button type="link" size="small" onClick={() => openEdit(row)}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
+  return (
+    <>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          New exit reason
+        </Button>
+      </Space>
+      <Card styles={{ body: { padding: 0 } }}>
+        <DataTable<ExitReason>
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => refetch()}
+          emptyText="No exit reasons defined"
+          emptyAction={
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              New exit reason
+            </Button>
+          }
+        />
+      </Card>
+      <ExitReasonFormDrawer open={drawerOpen} editing={editing} onClose={() => setDrawerOpen(false)} />
+    </>
+  );
+}
+
+function TenantConfigLookupTab({
+  resource,
+  entityLabel,
+}: {
+  resource: TenantConfigLookupResource;
+  /** Singular label, e.g. "work-permit type". */
+  entityLabel: string;
+}) {
+  const { data, isLoading, isError, error, refetch } = useTenantConfigLookups(resource);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<Lookup | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setDrawerOpen(true);
+  };
+  const openEdit = (row: Lookup) => {
+    setEditing(row);
+    setDrawerOpen(true);
+  };
+
+  const columns: ColumnsType<Lookup> = [
+    { title: 'Code', dataIndex: 'code', key: 'code', width: 120, render: (c) => <b>{c}</b> },
+    { title: 'Name', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_: unknown, row) => (
+        <Button type="link" size="small" onClick={() => openEdit(row)}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
+  return (
+    <>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          New {entityLabel}
+        </Button>
+      </Space>
+      <Card styles={{ body: { padding: 0 } }}>
+        <DataTable<Lookup>
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => refetch()}
+          emptyText={`No ${entityLabel}s defined`}
+          emptyAction={
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              New {entityLabel}
+            </Button>
+          }
+        />
+      </Card>
+      <TenantConfigLookupFormDrawer
+        open={drawerOpen}
+        resource={resource}
+        entityLabel={entityLabel}
+        editing={editing}
+        onClose={() => setDrawerOpen(false)}
+      />
+    </>
+  );
+}
+
 /** One entry in the master–detail catalogue. Add new masters here — the menu, routing and
  * scope grouping all derive from this list. */
 interface MasterDef {
@@ -369,6 +691,48 @@ const MASTERS: MasterDef[] = [
     label: 'Occupations',
     scope: 'tenant',
     render: () => <OccupationsTab />,
+  },
+  // Employee-config lookups (Sprint 2 Epic 1) — ALL tenant-wide (OQ-24): grounded in national
+  // law (ERA 2007 / Immigration Act 2003) or universal, so they sit in the shared group.
+  {
+    key: 'contract-types',
+    label: 'Contract Types',
+    scope: 'tenant',
+    render: () => <ContractTypesTab />,
+  },
+  {
+    key: 'employment-stages',
+    label: 'Employment Stages',
+    scope: 'tenant',
+    render: () => <EmploymentStagesTab />,
+  },
+  {
+    key: 'exit-reasons',
+    label: 'Exit Reasons',
+    scope: 'tenant',
+    render: () => <ExitReasonsTab />,
+  },
+  {
+    key: 'work-permit-types',
+    label: 'Work-Permit Types',
+    scope: 'tenant',
+    render: () => (
+      <TenantConfigLookupTab resource="work-permit-types" entityLabel="work-permit type" />
+    ),
+  },
+  {
+    key: 'relationship-types',
+    label: 'Relationship Types',
+    scope: 'tenant',
+    render: () => (
+      <TenantConfigLookupTab resource="relationship-types" entityLabel="relationship type" />
+    ),
+  },
+  {
+    key: 'document-types',
+    label: 'Document Types',
+    scope: 'tenant',
+    render: () => <TenantConfigLookupTab resource="document-types" entityLabel="document type" />,
   },
 ];
 
