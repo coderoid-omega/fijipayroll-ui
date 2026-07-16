@@ -19,7 +19,8 @@ function EmployeeDetail({ employee }: { employee: Employee }) {
       label: 'Employee Details',
       children: (
         <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }}>
-          <Descriptions.Item label="Code">{employee.code}</Descriptions.Item>
+          <Descriptions.Item label="Employee code">{employee.employeeCode}</Descriptions.Item>
+          <Descriptions.Item label="Login code">{dash(employee.loginCode)}</Descriptions.Item>
           <Descriptions.Item label="Display name">{employee.displayName}</Descriptions.Item>
           <Descriptions.Item label="First name">{dash(employee.firstName)}</Descriptions.Item>
           <Descriptions.Item label="Last name">{dash(employee.lastName)}</Descriptions.Item>
@@ -93,7 +94,7 @@ export function EmployeeDetailPage() {
     <>
       <PageHeader
         title={data?.displayName ?? 'Employee'}
-        subtitle={data?.code}
+        subtitle={data?.employeeCode}
         breadcrumbs={[
           { title: 'Home', href: '/' },
           { title: 'Employees', href: '/employees' },
