@@ -14,6 +14,9 @@ import type {
   CompanyWrite,
   Department,
   DepartmentWrite,
+  Employee,
+  EmployeeCreate,
+  EmployeePatch,
   FnpfScheme,
   FnpfSchemeWrite,
   Lookup,
@@ -25,6 +28,7 @@ import type {
   TaxRuleSet,
   TaxRuleSetWrite,
 } from '@/types/api';
+import { overallCompleteness } from '@/features/employees/profileCompleteness';
 import {
   companies,
   contractTypes,
@@ -815,9 +819,94 @@ export const employeesHandlers: RequestHandler[] = [
   http.get(url('/employees/:id'), async ({ request, params }) => {
     await delay();
     if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
-    const found = employees.find((e) => e.id === params.id);
+    // Company-scoped like the real API: a cross-company id does not resolve (404, never 403).
+    const companyId = activeCompanyId(request);
+    const found = employees.find((e) => e.id === params.id && e.companyId === companyId);
     if (!found) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
     return HttpResponse.json(found);
+  }),
+
+  // ---------------- EMPLOYEES (write; Sprint 2 Epic 2) ----------------
+  http.post(url('/employees'), async ({ request }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!companyId) return problem(422, 'COMPANY_HEADER_REQUIRED', 'X-Company-Id header is required');
+    const body = (await request.json()) as EmployeeCreate;
+    if (!body.firstName || !body.lastName || !body.contractTypeId || !body.dateOfHire || !body.payType || !body.taxCode) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: { firstName: ['The minimal core is required'] },
+      });
+    }
+
+    // employee_code: manual override → 409 on duplicate; omitted → next from the mock sequence.
+    let employeeCode = body.employeeCode?.trim() || '';
+    const taken = (code: string) =>
+      employees.some((e) => e.companyId === companyId && e.employeeCode.toLowerCase() === code.toLowerCase());
+    if (employeeCode) {
+      if (taken(employeeCode))
+        return problem(409, 'EMPLOYEE_CODE_DUPLICATE', `An employee with code '${employeeCode}' already exists in this company.`);
+    } else {
+      let n = employees.filter((e) => e.companyId === companyId).length + 1;
+      while (taken(`EMP${String(n).padStart(3, '0')}`)) n += 1;
+      employeeCode = `EMP${String(n).padStart(3, '0')}`;
+    }
+
+    const created: Employee = {
+      id: newId('em'),
+      companyId,
+      employeeCode,
+      loginCode: null,        // enable-login (Epic 3) — never set at onboarding
+      displayName: body.displayName?.trim() || `${body.firstName} ${body.lastName}`,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      middleName: body.middleName ?? null,
+      status: 'Active',
+      canLogin: false,
+      contractTypeId: body.contractTypeId,
+      stageId: body.stageId ?? null,
+      dateOfHire: body.dateOfHire,
+      payType: body.payType,
+      hourlyRate: body.hourlyRate ?? null,
+      salaryPerPeriod: body.salaryPerPeriod ?? null,
+      payFrequencyId: body.payFrequencyId ?? null,
+      taxCode: body.taxCode,
+      taxType: 'Resident',
+      tin: body.tin ?? null,
+      fnpfNo: body.fnpfNo ?? null,
+      dateOfBirth: body.dateOfBirth ?? null,
+      paymentMethod: null,
+      isGrossUp: false,
+      useSpecialTaxRate: false,
+      suspension: null,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    };
+    created.profileCompleteness = overallCompleteness(created);
+    employees.push(created);
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.patch(url('/employees/:id'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+
+    const body = (await request.json()) as EmployeePatch;
+    if (body.employeeCode !== undefined) {
+      const dup = employees.some(
+        (e) => e.companyId === companyId && e.id !== params.id &&
+          e.employeeCode.toLowerCase() === body.employeeCode!.toLowerCase());
+      if (dup) return problem(409, 'EMPLOYEE_CODE_DUPLICATE', `An employee with code '${body.employeeCode}' already exists in this company.`);
+    }
+
+    // Merge-patch: absent = unchanged; explicit null clears (the spread keeps nulls).
+    const merged: Employee = { ...employees[idx]!, ...body } as Employee;
+    merged.displayName = merged.displayName?.trim() || `${merged.firstName} ${merged.lastName}`;
+    merged.profileCompleteness = overallCompleteness(merged);
+    employees[idx] = merged;
+    return HttpResponse.json(merged);
   }),
 ];
 
