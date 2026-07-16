@@ -3175,6 +3175,8 @@ export interface components {
             taxType?: components["schemas"]["TaxType"];
             /** Format: date */
             dateOfBirth?: string | null;
+            sex?: string | null;
+            maritalStatus?: string | null;
             /** Format: date */
             dateOfTermination?: string | null;
             /** Format: uuid */

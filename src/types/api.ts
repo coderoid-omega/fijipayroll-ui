@@ -450,6 +450,8 @@ export interface Employee extends EmployeeSummary {
   taxCodeDeclarationDate?: string | null;
   taxType?: TaxType;
   dateOfBirth?: string | null;
+  sex?: string | null;
+  maritalStatus?: string | null;
   dateOfTermination?: string | null;
   payFrequencyId?: string | null;
   hourlyRate?: number | null;
@@ -483,3 +485,60 @@ export interface Employee extends EmployeeSummary {
 }
 
 export type EmployeeList = Paged<EmployeeSummary>;
+
+/** Contract `EmployeeCreate` — the minimal required core (OQ-04); the rest is completed
+ * progressively via PATCH. `loginCode` is absent by design (enable-login, Epic 3). */
+export interface EmployeeCreate {
+  /** Omit to allocate from the per-company sequence. */
+  employeeCode?: string | null;
+  firstName: string;
+  lastName: string;
+  middleName?: string | null;
+  displayName?: string | null;
+  contractTypeId: string;
+  stageId?: string | null;
+  dateOfHire: string;
+  payType: PayType;
+  hourlyRate?: number | null;
+  salaryPerPeriod?: number | null;
+  payFrequencyId?: string | null;
+  taxCode: TaxCode;
+  tin?: string | null;
+  fnpfNo?: string | null;
+  dateOfBirth?: string | null;
+}
+
+/** Contract `EmployeePatch` — sectioned partial update (merge-patch: ABSENT = unchanged, explicit
+ * null = clear). Position fields, `status` and `loginCode` are deliberately absent — they are
+ * owned by transfer/regrade/rate-change (Epic 6), the status action (Epic 5) and enable-login. */
+export interface EmployeePatch {
+  employeeCode?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string | null;
+  displayName?: string | null;
+  dateOfBirth?: string | null;
+  sex?: string | null;
+  maritalStatus?: string | null;
+  tin?: string | null;
+  fnpfNo?: string | null;
+  taxCode?: TaxCode;
+  taxType?: TaxType;
+  useSpecialTaxRate?: boolean;
+  specialTaxRate?: number | null;
+  taxCodeDeclarationDate?: string | null;
+  contractTypeId?: string;
+  payFrequencyId?: string | null;
+  /** Send null to CLEAR the payment method; omit to leave it unchanged. */
+  paymentMethod?: PaymentMethod | null;
+  isGrossUp?: boolean;
+  standardHours?: number | null;
+  salaryOtRate?: number | null;
+  reportsToEmployeeId?: string | null;
+  continuousServiceDate?: string | null;
+  probationStartDate?: string | null;
+  probationEndDate?: string | null;
+  bankName?: string | null;
+  bankAccountNo?: string | null;
+  bankBranch?: string | null;
+}
