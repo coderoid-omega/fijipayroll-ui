@@ -354,6 +354,62 @@ export interface CompanyLookupWrite {
   name: string;
 }
 
+// ---- employee-config lookups (Sprint 2 Epic 1 — ALL tenant-wide, OQ-24: no X-Company-Id) ----
+
+/** Who ended the engagement. `Neither` covers fixed-term expiry, retirement, death. */
+export type ExitInitiator = 'Employee' | 'Employer' | 'Neither';
+
+/** The LEGAL BASIS of engagement — orthogonal to employment stage (spec §5). */
+export interface ContractType extends Lookup {
+  /** Requires contract terms with an end date (Epic 4). */
+  isFixedTerm: boolean;
+  status: ActiveStatus;
+}
+
+export interface ContractTypeWrite {
+  code: string;
+  name: string;
+  isFixedTerm?: boolean;
+  status?: ActiveStatus;
+}
+
+/** PROGRESSION within an engagement — Trainee / Probation / Confirmed (never "Permanent"). */
+export interface EmploymentStage extends Lookup {
+  /** Progression order, e.g. Trainee 1, Probation 2, Confirmed 3. */
+  ordinal: number;
+  /** Stage expects probation start/end dates on the employee. */
+  isProbationary: boolean;
+  status: ActiveStatus;
+}
+
+export interface EmploymentStageWrite {
+  code: string;
+  name: string;
+  ordinal?: number;
+  isProbationary?: boolean;
+  status?: ActiveStatus;
+}
+
+/** Rules are data (D10): these flags drive severance/notice behaviour, never a switch on the code. */
+export interface ExitReason extends Lookup {
+  initiator: ExitInitiator;
+  /** Domain §2.3 — true for redundancy; false for misconduct/resignation/expiry/retirement. */
+  severanceEligible: boolean;
+  noticeRequired: boolean;
+  rehireEligible: boolean;
+  status: ActiveStatus;
+}
+
+export interface ExitReasonWrite {
+  code: string;
+  name: string;
+  initiator: ExitInitiator;
+  severanceEligible?: boolean;
+  noticeRequired?: boolean;
+  rehireEligible?: boolean;
+  status?: ActiveStatus;
+}
+
 // ---- employee (read; Sprint 2 Epic 0 identity split — two codes, not one) ----
 
 export type EmployeeStatus = 'Active' | 'Suspended' | 'Terminated' | 'Inactive';

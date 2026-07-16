@@ -7,8 +7,11 @@
 import type {
   Company,
   CompanyLookup,
+  ContractType,
   Department,
   Employee,
+  EmploymentStage,
+  ExitReason,
   FnpfScheme,
   Me,
   Office,
@@ -319,6 +322,63 @@ export const ethnicOrigins: Lookup[] = [
   { id: 'et000000-0000-0000-0000-000000000001', code: 'ITA', name: 'iTaukei' },
   { id: 'et000000-0000-0000-0000-000000000002', code: 'IND', name: 'Fijian of Indian descent' },
   { id: 'et000000-0000-0000-0000-000000000003', code: 'OTH', name: 'Other' },
+];
+
+// ---- employee-config lookups (Sprint 2 Epic 1 — tenant-wide, OQ-24) ----
+// Mirrors the API seed (fijipayroll-api schema-sprint-2 §16) so mocked/real worlds line up.
+
+export const contractTypes: ContractType[] = [
+  { id: 'ct000000-0000-0000-0000-000000000001', code: 'PERM', name: 'Permanent', isFixedTerm: false, status: 'Active' },
+  { id: 'ct000000-0000-0000-0000-000000000002', code: 'FIXED', name: 'Fixed-term', isFixedTerm: true, status: 'Active' },
+  { id: 'ct000000-0000-0000-0000-000000000003', code: 'CASUAL', name: 'Casual', isFixedTerm: false, status: 'Active' },
+  { id: 'ct000000-0000-0000-0000-000000000004', code: 'TEMP', name: 'Temporary', isFixedTerm: false, status: 'Active' },
+  { id: 'ct000000-0000-0000-0000-000000000005', code: 'INTERN', name: 'Intern', isFixedTerm: true, status: 'Active' },
+  { id: 'ct000000-0000-0000-0000-000000000006', code: 'APPR', name: 'Apprentice', isFixedTerm: true, status: 'Active' },
+];
+
+export const employmentStages: EmploymentStage[] = [
+  { id: 'es000000-0000-0000-0000-000000000001', code: 'TRAINEE', name: 'Trainee', ordinal: 1, isProbationary: false, status: 'Active' },
+  { id: 'es000000-0000-0000-0000-000000000002', code: 'PROB', name: 'Probation', ordinal: 2, isProbationary: true, status: 'Active' },
+  { id: 'es000000-0000-0000-0000-000000000003', code: 'CONF', name: 'Confirmed', ordinal: 3, isProbationary: false, status: 'Active' },
+];
+
+// The flags ARE the behaviour (D10): severance only on redundancy (Domain §2.3).
+export const exitReasons: ExitReason[] = [
+  { id: 'xr000000-0000-0000-0000-000000000001', code: 'RESIGN', name: 'Resignation', initiator: 'Employee', severanceEligible: false, noticeRequired: true, rehireEligible: true, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000002', code: 'REDUND', name: 'Redundancy', initiator: 'Employer', severanceEligible: true, noticeRequired: true, rehireEligible: true, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000003', code: 'MISCON', name: 'Misconduct', initiator: 'Employer', severanceEligible: false, noticeRequired: true, rehireEligible: false, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000004', code: 'SUMDIS', name: 'Summary dismissal (serious misconduct)', initiator: 'Employer', severanceEligible: false, noticeRequired: false, rehireEligible: false, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000005', code: 'INCAP', name: 'Incapacity', initiator: 'Employer', severanceEligible: false, noticeRequired: true, rehireEligible: true, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000006', code: 'PROBFAIL', name: 'Failed probation', initiator: 'Employer', severanceEligible: false, noticeRequired: true, rehireEligible: true, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000007', code: 'EXPIRY', name: 'Fixed-term expiry', initiator: 'Neither', severanceEligible: false, noticeRequired: false, rehireEligible: true, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000008', code: 'RETIRE', name: 'Retirement', initiator: 'Neither', severanceEligible: false, noticeRequired: false, rehireEligible: false, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000009', code: 'DEATH', name: 'Death in service', initiator: 'Neither', severanceEligible: false, noticeRequired: false, rehireEligible: false, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000010', code: 'ABANDON', name: 'Abandonment of employment', initiator: 'Employee', severanceEligible: false, noticeRequired: false, rehireEligible: false, status: 'Active' },
+  { id: 'xr000000-0000-0000-0000-000000000011', code: 'MUTUAL', name: 'Mutual separation', initiator: 'Employer', severanceEligible: false, noticeRequired: true, rehireEligible: true, status: 'Active' },
+];
+
+export const workPermitTypes: Lookup[] = [
+  { id: 'wp000000-0000-0000-0000-000000000001', code: 'LT', name: 'Long-term (3yr)' },
+  { id: 'wp000000-0000-0000-0000-000000000002', code: 'ST', name: 'Short-term (up to 1yr)' },
+  { id: 'wp000000-0000-0000-0000-000000000003', code: 'SEC', name: 'Secondment' },
+];
+
+export const relationshipTypes: Lookup[] = [
+  { id: 'rt000000-0000-0000-0000-000000000001', code: 'SPOUSE', name: 'Spouse' },
+  { id: 'rt000000-0000-0000-0000-000000000002', code: 'CHILD', name: 'Child' },
+  { id: 'rt000000-0000-0000-0000-000000000003', code: 'PARENT', name: 'Parent' },
+  { id: 'rt000000-0000-0000-0000-000000000004', code: 'SIBLING', name: 'Sibling' },
+  { id: 'rt000000-0000-0000-0000-000000000005', code: 'OTHER', name: 'Other' },
+];
+
+export const documentTypes: Lookup[] = [
+  { id: 'dt000000-0000-0000-0000-000000000001', code: 'CONTRACT', name: 'Contract' },
+  { id: 'dt000000-0000-0000-0000-000000000002', code: 'TCD', name: 'TCD Form' },
+  { id: 'dt000000-0000-0000-0000-000000000003', code: 'ID', name: 'ID/Passport' },
+  { id: 'dt000000-0000-0000-0000-000000000004', code: 'CERT', name: 'Certificate' },
+  { id: 'dt000000-0000-0000-0000-000000000005', code: 'PERMIT', name: 'Work Permit' },
+  { id: 'dt000000-0000-0000-0000-000000000006', code: 'PHOTO', name: 'Photo' },
+  { id: 'dt000000-0000-0000-0000-000000000007', code: 'OTHER', name: 'Other' },
 ];
 
 // ---- employees (read; stretch) ----

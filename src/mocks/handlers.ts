@@ -27,18 +27,23 @@ import type {
 } from '@/types/api';
 import {
   companies,
+  contractTypes,
   departments,
   DEMO_CREDENTIALS,
   DEMO_TOKEN,
   divisions,
+  documentTypes,
   employees,
+  employmentStages,
   ethnicOrigins,
+  exitReasons,
   fnpfSchemes,
   grades,
   levels,
   me,
   occupations,
   offices,
+  relationshipTypes,
   sections,
   payElements,
   payFrequencies,
@@ -46,6 +51,7 @@ import {
   payPeriods,
   provinces,
   taxRuleSets,
+  workPermitTypes,
 } from './seed';
 
 const BASE = '/api/v1';
@@ -584,6 +590,56 @@ function companyLookupRoutes(
   ];
 }
 
+/** CRUD routes for a tenant-wide employee-config lookup (Sprint 2 Epic 1 — no X-Company-Id,
+ * OQ-24). Serves both the plain Lookup trio (work-permit / relationship / document types) and the
+ * richer contract-type / employment-stage / exit-reason shapes: extra fields fall back to
+ * `defaults` on create and spread over the row on update. */
+function tenantLookupRoutes<T extends Lookup>(
+  path: string,
+  store: T[],
+  slug: string,
+  label: string,
+  idPrefix: string,
+  defaults: Omit<T, keyof Lookup>,
+): RequestHandler[] {
+  return [
+    http.get(url(path), async () => {
+      await delay();
+      return HttpResponse.json(store);
+    }),
+
+    http.post(url(path), async ({ request }) => {
+      await delay();
+      if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+      const body = (await request.json()) as LookupWrite & Partial<T>;
+      if (!body.code || !body.name) {
+        return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+          errors: {
+            ...(body.code ? {} : { code: ['Code is required'] }),
+            ...(body.name ? {} : { name: ['Name is required'] }),
+          },
+        });
+      }
+      if (store.some((x) => x.code.toLowerCase() === body.code.toLowerCase())) {
+        return problem(409, `${slug}_CODE_DUPLICATE`, `A ${label} with code '${body.code}' already exists.`);
+      }
+      const created = { ...defaults, ...body, id: newId(idPrefix) } as T;
+      store.push(created);
+      return HttpResponse.json(created, { status: 201 });
+    }),
+
+    http.put(url(`${path}/:id`), async ({ request, params }) => {
+      await delay();
+      if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+      const idx = store.findIndex((x) => x.id === params.id);
+      if (idx === -1) return problem(404, `${slug}_NOT_FOUND`, `${label} not found`);
+      const body = (await request.json()) as Partial<T>;
+      store[idx] = { ...store[idx]!, ...body, id: store[idx]!.id };
+      return HttpResponse.json(store[idx]);
+    }),
+  ];
+}
+
 export const orgLookupsHandlers: RequestHandler[] = [
   // ---------------- ORG LOOKUPS ----------------
   http.get(url('/departments'), async ({ request }) => {
@@ -709,6 +765,27 @@ export const orgLookupsHandlers: RequestHandler[] = [
   ...companyLookupRoutes('/sections', sections, 'SECTION', 'section', 'se'),
   ...companyLookupRoutes('/grades', grades, 'GRADE', 'grade', 'gr'),
   ...companyLookupRoutes('/levels', levels, 'LEVEL', 'level', 'lv'),
+
+  // Employee-config lookups (Sprint 2 Epic 1) — tenant-wide, no X-Company-Id (OQ-24).
+  ...tenantLookupRoutes('/contract-types', contractTypes, 'CONTRACT_TYPE', 'contract type', 'ct', {
+    isFixedTerm: false,
+    status: 'Active',
+  }),
+  ...tenantLookupRoutes('/employment-stages', employmentStages, 'EMPLOYMENT_STAGE', 'employment stage', 'es', {
+    ordinal: 0,
+    isProbationary: false,
+    status: 'Active',
+  }),
+  ...tenantLookupRoutes('/exit-reasons', exitReasons, 'EXIT_REASON', 'exit reason', 'xr', {
+    initiator: 'Employer',
+    severanceEligible: false,
+    noticeRequired: true,
+    rehireEligible: true,
+    status: 'Active',
+  }),
+  ...tenantLookupRoutes('/work-permit-types', workPermitTypes, 'WORK_PERMIT_TYPE', 'work-permit type', 'wp', {}),
+  ...tenantLookupRoutes('/relationship-types', relationshipTypes, 'RELATIONSHIP_TYPE', 'relationship type', 'rt', {}),
+  ...tenantLookupRoutes('/document-types', documentTypes, 'DOCUMENT_TYPE', 'document type', 'dt', {}),
 
   http.get(url('/provinces'), async () => {
     await delay();
