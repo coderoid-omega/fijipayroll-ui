@@ -508,6 +508,14 @@ export interface EmployeeCreate {
   dateOfBirth?: string | null;
 }
 
+/** Contract `EnableLoginRequest` — omit `loginCode` to accept the server's
+ * `{companyCode}-{employeeCode}` proposal; supply it after a 409 `LOGIN_CODE_TAKEN` collision.
+ * NOTE: this assigns the login CODE only — no credential exists yet, so `canLogin` stays false
+ * ("credentials pending"); the set-password flow is a later epic. */
+export interface EnableLoginRequest {
+  loginCode?: string;
+}
+
 /** Contract `EmployeePatch` — sectioned partial update (merge-patch: ABSENT = unchanged, explicit
  * null = clear). Position fields, `status` and `loginCode` are deliberately absent — they are
  * owned by transfer/regrade/rate-change (Epic 6), the status action (Epic 5) and enable-login. */

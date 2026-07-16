@@ -17,6 +17,7 @@ import type {
   Employee,
   EmployeeCreate,
   EmployeePatch,
+  EnableLoginRequest,
   FnpfScheme,
   FnpfSchemeWrite,
   Lookup,
@@ -907,6 +908,35 @@ export const employeesHandlers: RequestHandler[] = [
     merged.profileCompleteness = overallCompleteness(merged);
     employees[idx] = merged;
     return HttpResponse.json(merged);
+  }),
+
+  // ---------------- ENABLE-LOGIN (Sprint 2 Epic 3) ----------------
+  // Assigns the global login CODE only — no credential, so canLogin stays false
+  // ("credentials pending"). Immutable once set; collisions are global.
+  http.post(url('/employees/:id/enable-login'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+
+    if (employee.loginCode) {
+      return problem(409, 'LOGIN_ALREADY_ENABLED',
+        `This employee already has login code '${employee.loginCode}' — it is immutable and never reused.`);
+    }
+
+    const body = (await request.json().catch(() => null)) as EnableLoginRequest | null;
+    const companyCode = companies.find((c) => c.id === companyId)?.code ?? 'MAIN';
+    const loginCode = body?.loginCode?.trim() || `${companyCode}-${employee.employeeCode}`;
+
+    // Global uniqueness (app_user.login_code UNIQUE) — every assigned code counts.
+    if (employees.some((e) => e.loginCode?.toLowerCase() === loginCode.toLowerCase())) {
+      return problem(409, 'LOGIN_CODE_TAKEN', `Login code '${loginCode}' is already in use.`);
+    }
+
+    employees[idx] = { ...employee, loginCode, canLogin: false };
+    return HttpResponse.json(employees[idx]);
   }),
 ];
 
