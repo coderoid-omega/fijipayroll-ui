@@ -18,7 +18,7 @@ function EmployeesList({ companyId }: { companyId: string }) {
   const listQuery = useEmployees(companyId, { page, pageSize, search });
 
   const columns: ColumnsType<EmployeeSummary> = [
-    { title: 'Code', dataIndex: 'code', key: 'code', width: 110, render: (c) => <b>{c}</b> },
+    { title: 'Code', dataIndex: 'employeeCode', key: 'employeeCode', width: 110, render: (c) => <b>{c}</b> },
     { title: 'Name', dataIndex: 'displayName', key: 'name' },
     {
       title: 'Tax code',
@@ -42,7 +42,9 @@ function EmployeesList({ companyId }: { companyId: string }) {
       key: 'status',
       width: 120,
       render: (s: EmployeeSummary['status']) => (
-        <Tag color={s === 'Active' ? 'green' : s === 'Terminated' ? 'red' : 'default'}>{s}</Tag>
+        <Tag color={s === 'Active' ? 'green' : s === 'Suspended' ? 'orange' : s === 'Terminated' ? 'red' : 'default'}>
+          {s}
+        </Tag>
       ),
     },
   ];
@@ -52,7 +54,7 @@ function EmployeesList({ companyId }: { companyId: string }) {
       <Space style={{ marginBottom: 16 }}>
         <Input.Search
           allowClear
-          placeholder="Search by code, name, TIN or FNPF #"
+          placeholder="Search by employee code, name, TIN or FNPF #"
           style={{ width: 320 }}
           onSearch={(value) => {
             setPage(1);

@@ -731,7 +731,7 @@ export const employeesHandlers: RequestHandler[] = [
     const search = new URL(request.url).searchParams.get('search');
     const filtered = employees
       .filter((e) => e.companyId === companyId)
-      .filter((e) => matchesSearch(e, search, ['code', 'displayName', 'tin', 'fnpfNo']));
+      .filter((e) => matchesSearch(e, search, ['employeeCode', 'displayName', 'tin', 'fnpfNo']));
     return HttpResponse.json(paginate(filtered, request.url));
   }),
 

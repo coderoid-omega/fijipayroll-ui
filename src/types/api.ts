@@ -354,20 +354,34 @@ export interface CompanyLookupWrite {
   name: string;
 }
 
-// ---- employee (read; stretch) ----
+// ---- employee (read; Sprint 2 Epic 0 identity split — two codes, not one) ----
+
+export type EmployeeStatus = 'Active' | 'Suspended' | 'Terminated' | 'Inactive';
+
+/** Present only while status is `Suspended`. */
+export interface Suspension {
+  isPaid: boolean;
+  startDate: string;
+  endDate?: string | null;
+  reason?: string | null;
+}
 
 export interface EmployeeSummary {
   id: string;
   companyId: string;
-  /** globally-unique; also the login code */
-  code: string;
+  /** Unique PER COMPANY (the same value may exist in another company). Replaces the Sprint-1 `code`. */
+  employeeCode: string;
+  /** Globally unique, NULLABLE — assigned only by enable-login (Epic 3), immutable once set. */
+  loginCode?: string | null;
   displayName: string;
   fnpfNo?: string | null;
   tin?: string | null;
   taxCode?: TaxCode;
   dateOfHire?: string | null;
   payType?: PayType;
-  status: 'Active' | 'Terminated' | 'Inactive';
+  status: EmployeeStatus;
+  contractTypeId?: string | null;
+  stageId?: string | null;
 }
 
 export interface Employee extends EmployeeSummary {
@@ -384,12 +398,28 @@ export interface Employee extends EmployeeSummary {
   payFrequencyId?: string | null;
   hourlyRate?: number | null;
   salaryPerPeriod?: number | null;
-  paymentMethod?: PaymentMethod;
+  /** Nullable — not settable at create (progressive profile), so a fresh employee has none. */
+  paymentMethod?: PaymentMethod | null;
   isGrossUp?: boolean;
   standardHours?: number | null;
+  salaryOtRate?: number | null;
+  // org placement (OQ-25a) — a denormalised cache; the position timeline (Epic 6) is authoritative
+  divisionId?: string | null;
   departmentId?: string | null;
+  sectionId?: string | null;
   officeId?: string | null;
+  gradeId?: string | null;
+  levelId?: string | null;
   occupationId?: string | null;
+  reportsToEmployeeId?: string | null;
+  // lifecycle
+  currentEngagementId?: string | null;
+  continuousServiceDate?: string | null;
+  probationStartDate?: string | null;
+  probationEndDate?: string | null;
+  suspension?: Suspension | null;
+  /** Percent of the 360 profile populated (progressive profile, OQ-04). */
+  profileCompleteness?: number;
   bankName?: string | null;
   bankAccountNo?: string | null;
   bankBranch?: string | null;

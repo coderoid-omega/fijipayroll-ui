@@ -326,7 +326,7 @@ export const employees: Employee[] = [
   {
     id: 'em000000-0000-0000-0000-000000000001',
     companyId: IDS.companyDemo,
-    code: 'EMP001',
+    employeeCode: 'EMP001',
     displayName: 'Sefanaia Naivalu',
     firstName: 'Sefanaia',
     lastName: 'Naivalu',
@@ -350,7 +350,7 @@ export const employees: Employee[] = [
   {
     id: 'em000000-0000-0000-0000-000000000002',
     companyId: IDS.companyDemo,
-    code: 'EMP002',
+    employeeCode: 'EMP002',
     displayName: 'Priya Sharma',
     firstName: 'Priya',
     lastName: 'Sharma',
@@ -374,7 +374,7 @@ export const employees: Employee[] = [
   {
     id: 'em000000-0000-0000-0000-000000000003',
     companyId: IDS.companySample,
-    code: 'EMP100',
+    employeeCode: 'EMP100',
     displayName: 'John Whippy',
     firstName: 'John',
     lastName: 'Whippy',
