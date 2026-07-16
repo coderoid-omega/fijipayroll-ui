@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/apiClient';
 import { queryKeys, type ListParams } from '@/lib/queryKeys';
-import type { ContractType, EmployeeCreate, EmployeePatch, EmploymentStage, PayFrequency } from '@/types/api';
+import type {
+  ContractType,
+  EmployeeCreate,
+  EmployeePatch,
+  EmploymentStage,
+  EnableLoginRequest,
+  PayFrequency,
+} from '@/types/api';
 import { employeesApi } from './employeesApi';
 
 // Reference data the employee forms need (contract types / stages / pay frequencies). Local hooks
@@ -60,6 +67,17 @@ export function usePatchEmployee(companyId: string, id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: EmployeePatch) => employeesApi.patch(id, body),
+    onSuccess: (updated) => {
+      qc.setQueryData(queryKeys.employees.detail(companyId, id), updated);
+      void qc.invalidateQueries({ queryKey: queryKeys.employees.all(companyId) });
+    },
+  });
+}
+
+export function useEnableLogin(companyId: string, id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body?: EnableLoginRequest) => employeesApi.enableLogin(id, body),
     onSuccess: (updated) => {
       qc.setQueryData(queryKeys.employees.detail(companyId, id), updated);
       void qc.invalidateQueries({ queryKey: queryKeys.employees.all(companyId) });

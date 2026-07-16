@@ -11,6 +11,7 @@ import type { Employee } from '@/types/api';
 import { useEmployee } from '../api/hooks';
 import { sectionScores } from '../profileCompleteness';
 import { EmployeeSectionDrawer, type EmployeeSection } from '../components/EmployeeSectionDrawer';
+import { AssignLoginCodeModal } from '../components/AssignLoginCodeModal';
 
 function dash(v: string | number | null | undefined): string {
   return v === null || v === undefined || v === '' ? '—' : String(v);
@@ -22,8 +23,17 @@ function dash(v: string | number | null | undefined): string {
  * collections, audit) arrive with Epics 4-11. The completeness indicator combines the API's
  * authoritative `profileCompleteness` with the shared per-section map.
  */
-function EmployeeDetail({ employee, companyId }: { employee: Employee; companyId: string }) {
+function EmployeeDetail({
+  employee,
+  companyId,
+  companyCode,
+}: {
+  employee: Employee;
+  companyId: string;
+  companyCode: string;
+}) {
   const [editing, setEditing] = useState<EmployeeSection | null>(null);
+  const [assigningLogin, setAssigningLogin] = useState(false);
   const scores = sectionScores(employee);
   const scoreOf = (key: EmployeeSection) => scores.find((s) => s.key === key)!;
 
@@ -168,20 +178,34 @@ function EmployeeDetail({ employee, companyId }: { employee: Employee; companyId
   return (
     <>
       <Card style={{ marginBottom: 16 }}>
-        <Flex align="center" gap={16} wrap>
-          <Progress
-            type="circle"
-            size={64}
-            percent={employee.profileCompleteness ?? 0}
-            status={(employee.profileCompleteness ?? 0) === 100 ? 'success' : 'normal'}
-          />
+        <Flex align="center" gap={16} wrap justify="space-between">
+          <Flex align="center" gap={16}>
+            <Progress
+              type="circle"
+              size={64}
+              percent={employee.profileCompleteness ?? 0}
+              status={(employee.profileCompleteness ?? 0) === 100 ? 'success' : 'normal'}
+            />
+            <div>
+              <Typography.Text strong>Profile completeness</Typography.Text>
+              <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+                The progressive profile (OQ-04): onboard with the core, complete each section later.
+                {' '}
+                {scores.map((s) => `${s.label} ${s.populated}/${s.total}`).join(' · ')}
+              </Typography.Paragraph>
+            </div>
+          </Flex>
+          {/* Epic 3: a login CODE, not a credential — canLogin stays false until the
+              set-password flow (a later epic), so the honest state is "credentials pending". */}
           <div>
-            <Typography.Text strong>Profile completeness</Typography.Text>
-            <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-              The progressive profile (OQ-04): onboard with the core, complete each section later.
-              {' '}
-              {scores.map((s) => `${s.label} ${s.populated}/${s.total}`).join(' · ')}
-            </Typography.Paragraph>
+            {employee.loginCode ? (
+              <Flex align="center" gap={8}>
+                <Tag color="blue">Login code: {employee.loginCode}</Tag>
+                {!employee.canLogin && <Tag color="orange">credentials pending</Tag>}
+              </Flex>
+            ) : (
+              <Button onClick={() => setAssigningLogin(true)}>Assign login code</Button>
+            )}
           </div>
         </Flex>
       </Card>
@@ -197,6 +221,13 @@ function EmployeeDetail({ employee, companyId }: { employee: Employee; companyId
           onClose={() => setEditing(null)}
         />
       )}
+      <AssignLoginCodeModal
+        open={assigningLogin}
+        companyId={companyId}
+        companyCode={companyCode}
+        employee={employee}
+        onClose={() => setAssigningLogin(false)}
+      />
     </>
   );
 }
@@ -204,7 +235,7 @@ function EmployeeDetail({ employee, companyId }: { employee: Employee; companyId
 /** Employee 360 (Sprint 2 Epic 2: sectioned editing + completeness; read scaffold was Sprint 1). */
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { activeCompanyId } = useTenantCompany();
+  const { activeCompanyId, activeCompany } = useTenantCompany();
   const { data, isLoading, isError, error, refetch } = useEmployee(activeCompanyId ?? '', id);
 
   return (
@@ -225,7 +256,11 @@ export function EmployeeDetailPage() {
       ) : isError ? (
         <QueryError error={error} onRetry={() => refetch()} />
       ) : data && activeCompanyId ? (
-        <EmployeeDetail employee={data} companyId={activeCompanyId} />
+        <EmployeeDetail
+          employee={data}
+          companyId={activeCompanyId}
+          companyCode={activeCompany?.code ?? ''}
+        />
       ) : (
         <Alert type="warning" showIcon message="Employee not found." />
       )}
