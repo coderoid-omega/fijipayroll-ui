@@ -10,9 +10,15 @@ import type {
   EmployeePatch,
   EmploymentStage,
   EnableLoginRequest,
+  EngagementPatch,
+  ExitReason,
   ExtendProbationRequest,
+  LiftSuspensionRequest,
   PayFrequency,
+  RehireRequest,
   StageChangeRequest,
+  SuspendRequest,
+  TerminateRequest,
 } from '@/types/api';
 import { employeesApi } from './employeesApi';
 
@@ -32,6 +38,14 @@ export function useEmploymentStageOptions() {
   return useQuery({
     queryKey: queryKeys.employmentStages(),
     queryFn: () => api.get<EmploymentStage[]>('/employment-stages'),
+    staleTime: 60 * 60_000,
+  });
+}
+
+export function useExitReasonOptions() {
+  return useQuery({
+    queryKey: queryKeys.exitReasons(),
+    queryFn: () => api.get<ExitReason[]>('/exit-reasons'),
     staleTime: 60 * 60_000,
   });
 }
@@ -163,5 +177,42 @@ export function useCreateContractTerm(companyId: string, id: string) {
     mutationFn: (body: ContractTermCreate) => employeesApi.createContractTerm(id, body),
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: queryKeys.employees.contractTerms(companyId, id) }),
+  });
+}
+
+// ---- status machine, suspension & exit (Epic 5) ----
+
+export function useSuspensionHistory(companyId: string, id: string) {
+  return useQuery({
+    queryKey: queryKeys.employees.suspensionHistory(companyId, id),
+    queryFn: () => employeesApi.suspensionHistory(id),
+    enabled: Boolean(companyId && id),
+  });
+}
+
+export function useSuspendEmployee(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: SuspendRequest) => employeesApi.suspend(id, body));
+}
+
+export function useLiftSuspension(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body?: LiftSuspensionRequest) =>
+    employeesApi.liftSuspension(id, body));
+}
+
+export function useTerminateEmployee(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: TerminateRequest) => employeesApi.terminate(id, body));
+}
+
+export function useRehireEmployee(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: RehireRequest) => employeesApi.rehire(id, body));
+}
+
+export function usePatchEngagement(companyId: string, id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ engagementId, body }: { engagementId: string; body: EngagementPatch }) =>
+      employeesApi.patchEngagement(id, engagementId, body),
+    // The engagement changed and (when current) the employee cache with it — refresh the subtree.
+    onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.employees.detail(companyId, id) }),
   });
 }
