@@ -64,5 +64,15 @@ export const queryKeys = {
     list: (companyId: string, params?: ListParams) =>
       ['employees', companyId, 'list', params ?? {}] as const,
     detail: (companyId: string, id: string) => ['employees', companyId, 'detail', id] as const,
+    // Epic 4 lifecycle sub-resources — under detail so invalidating the employee subtree
+    // refreshes them with it.
+    engagements: (companyId: string, id: string) =>
+      ['employees', companyId, 'detail', id, 'engagements'] as const,
+    contractTerms: (companyId: string, id: string) =>
+      ['employees', companyId, 'detail', id, 'contract-terms'] as const,
+    stageHistory: (companyId: string, id: string) =>
+      ['employees', companyId, 'detail', id, 'stage-history'] as const,
+    contractTypeHistory: (companyId: string, id: string) =>
+      ['employees', companyId, 'detail', id, 'contract-type-history'] as const,
   },
 } as const;

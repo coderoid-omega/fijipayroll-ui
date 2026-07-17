@@ -2618,6 +2618,405 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{id}/engagements": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List the employee's engagements (hire->terminate cycles), current first
+         * @description One row per hire->terminate cycle (spec §4). The current engagement anchors continuous service and YTD. There is deliberately NO POST here — a new engagement is a REHIRE, owned by `POST /employees/{id}/status` (Epic 5).
+         *
+         *     The engagement is AUTHORITATIVE for `contractTypeId` / `continuousServiceDate` / `dateOfHire` / `employeeCode`; the same-named fields on `Employee` are a denormalised cache of the CURRENT engagement, written only by the engagement actions — never by `PATCH /employees/{id}`. If they disagree, the engagement wins.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Engagement"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/contract-terms": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** List the employee's contract terms, newest first */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContractTerm"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        /**
+         * Record a contract term on the CURRENT engagement (a renewal is a NEW row)
+         * @description A fixed-term renewal is a NEW row with `renewalOf` pointing at the term it renews — never an overwrite (spec §5.2). Errors: `CONTRACT_TERM_ORDER_INVALID` (422 — `termEnd` before `termStart`), `CONTRACT_TERM_RENEWAL_INVALID` (422 — `renewalOf` does not resolve to a term of this employee's current engagement), `ENGAGEMENT_MISSING` (422).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ContractTermCreate"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        Location?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContractTerm"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/stage-history": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** List the employee's stage history, newest first */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StageHistoryEntry"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/stage-change": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move the employee to a new stage (Trainee -> Probation -> Confirmed)
+         * @description Writes a stage-history row on the current engagement (the server fills `fromStageId` from the employee's current stage) and updates the `Employee.stageId` cache. One row per effective date per engagement — a duplicate date is 409 `STAGE_CHANGE_DATE_CONFLICT`, never an upsert. Errors: `EMPLOYMENT_STAGE_INVALID` (422), `ENGAGEMENT_MISSING` (422).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["StageChangeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/extend-probation": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extend the employee's probation (end-date change + history row — NOT a new stage)
+         * @description Changes `Employee.probationEndDate` and writes a stage-history row carrying the reason. The stage does NOT change (spec §9.1) — that row's `fromStageId` equals `toStageId` by design. The employee's current stage must be probationary (`EMPLOYEE_NOT_ON_PROBATION`, 422). A second extension on the same date is 409 `STAGE_CHANGE_DATE_CONFLICT` (one history row per effective date).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExtendProbationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/contract-type-history": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List the employee's contract-type history, newest first
+         * @description Business history, not audit — "what contract type were they on in March?" must be answerable from business data (leave eligibility reads it, OQ-05). The first row of each engagement is the hire (`fromContractTypeId` null).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContractTypeHistoryEntry"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/contract-change": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the employee's contract type mid-engagement (e.g. Casual -> Permanent)
+         * @description Writes a contract-type-history row and updates BOTH the engagement's `contractTypeId` (authoritative) and the `Employee.contractTypeId` cache. It does NOT touch `continuousServiceDate` — whether continuous service carries or resets on a contract-type change is PARKED (OQ-15, needs a legal ruling); this endpoint deliberately leaves it unchanged. A duplicate `validFrom` on the engagement is 409 `CONTRACT_CHANGE_DATE_CONFLICT`. Errors: `CONTRACT_TYPE_INVALID` (422), `ENGAGEMENT_MISSING` (422).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ContractChangeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3086,7 +3485,11 @@ export interface components {
             /** Format: date */
             dateOfBirth?: string | null;
         };
-        /** @description Partial update of the employee's own attributes. Position fields (division / department / section / office / grade / level / occupation / rate) are deliberately ABSENT — they are owned by transfer / regrade / rate-change so every change lands on the position timeline. `loginCode` and `status` are absent for the same reason. */
+        /**
+         * @description Partial update of the employee's own attributes. Position fields (division / department / section / office / grade / level / occupation / rate) are deliberately ABSENT — they are owned by transfer / regrade / rate-change so every change lands on the position timeline. `loginCode` and `status` are absent for the same reason.
+         *
+         *     BREAKING (Epic 4): `contractTypeId`, `continuousServiceDate`, `probationStartDate` and `probationEndDate` are REMOVED — those employee fields are a denormalised cache of the CURRENT engagement, written only by the engagement actions (`contract-change`, `stage-change`, `extend-probation`; rehire in Epic 5). PATCHing the cache while the engagement kept the old value produced silent divergence with no history row.
+         */
         EmployeePatch: {
             employeeCode?: string;
             firstName?: string;
@@ -3106,8 +3509,6 @@ export interface components {
             /** Format: date */
             taxCodeDeclarationDate?: string | null;
             /** Format: uuid */
-            contractTypeId?: string;
-            /** Format: uuid */
             payFrequencyId?: string | null;
             /** @description Send null to CLEAR the payment method; omit to leave it unchanged. */
             paymentMethod?: components["schemas"]["PaymentMethod"] | null;
@@ -3116,12 +3517,6 @@ export interface components {
             salaryOtRate?: number | null;
             /** Format: uuid */
             reportsToEmployeeId?: string | null;
-            /** Format: date */
-            continuousServiceDate?: string | null;
-            /** Format: date */
-            probationStartDate?: string | null;
-            /** Format: date */
-            probationEndDate?: string | null;
             bankName?: string | null;
             bankAccountNo?: string | null;
             bankBranch?: string | null;
@@ -3238,6 +3633,143 @@ export interface components {
         };
         EmployeeList: components["schemas"]["PagedMeta"] & {
             items?: components["schemas"]["EmployeeSummary"][];
+        };
+        /** @description One hire->terminate cycle (spec §4, OQ-08). AUTHORITATIVE for contract type / continuous service / hire date / the code held during the cycle; the same-named `Employee` fields are a cache of the CURRENT engagement. `employeeCode` and `dateOfHire` here are per-cycle historical fact (a rehire has a new hire date; a cross-brand transfer issues a new code). The exit fields are created in Epic 4 but WRITTEN only by Epic 5's terminate. */
+        Engagement: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            employeeId: string;
+            /** Format: uuid */
+            companyId: string;
+            /** @description The code held during THIS engagement. */
+            employeeCode: string;
+            isCurrent: boolean;
+            /** Format: date */
+            dateOfHire: string;
+            /**
+             * Format: date
+             * @description May predate the hire (service carried in).
+             */
+            continuousServiceDate?: string | null;
+            /** Format: uuid */
+            contractTypeId: string;
+            /** Format: date */
+            noticeDate?: string | null;
+            noticePeriodDays?: number | null;
+            /**
+             * Format: date
+             * @description NOT the same as terminationEffectiveDate when notice is paid in lieu.
+             */
+            lastWorkingDay?: string | null;
+            /** Format: date */
+            terminationEffectiveDate?: string | null;
+            /** Format: uuid */
+            exitReasonId?: string | null;
+            /** @enum {string|null} */
+            noticeHandling?: "Served" | "PaidInLieu" | "Waived" | "NotRequired" | null;
+            audit: components["schemas"]["Audit"];
+        };
+        /** @description A contract term on an engagement. A renewal is a NEW row, never an overwrite. */
+        ContractTerm: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            employeeId: string;
+            /** Format: uuid */
+            engagementId: string;
+            /** Format: date */
+            termStart: string;
+            /**
+             * Format: date
+             * @description Null only for non-fixed-term.
+             */
+            termEnd?: string | null;
+            /**
+             * Format: uuid
+             * @description The term this row renews.
+             */
+            renewalOf?: string | null;
+            /** Format: date */
+            signedDate?: string | null;
+            audit: components["schemas"]["Audit"];
+        };
+        ContractTermCreate: {
+            /** Format: date */
+            termStart: string;
+            /** Format: date */
+            termEnd?: string | null;
+            /**
+             * Format: uuid
+             * @description For a renewal: the id of the term being renewed (same engagement).
+             */
+            renewalOf?: string | null;
+            /** Format: date */
+            signedDate?: string | null;
+        };
+        /** @description A stage transition on an engagement (spec §5). A probation EXTENSION appears here with `fromStageId` = `toStageId` — an extension is not a new stage. */
+        StageHistoryEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            employeeId: string;
+            /** Format: uuid */
+            engagementId: string;
+            /**
+             * Format: uuid
+             * @description Null on the first row (hire).
+             */
+            fromStageId?: string | null;
+            /** Format: uuid */
+            toStageId: string;
+            /** Format: date */
+            effectiveDate: string;
+            reason?: string | null;
+            /** @description Seam for the deferred review process. */
+            reviewRef?: string | null;
+            audit: components["schemas"]["Audit"];
+        };
+        StageChangeRequest: {
+            /** Format: uuid */
+            toStageId: string;
+            /** Format: date */
+            effectiveDate: string;
+            reason?: string | null;
+            reviewRef?: string | null;
+        };
+        ExtendProbationRequest: {
+            /** Format: date */
+            newEndDate: string;
+            /** @description Required — the extension must leave a trail. */
+            reason: string;
+        };
+        /** @description A contract-type change on an engagement (e.g. Casual -> Permanent). Business history the engine reads — NOT audit. The first row of each engagement is the hire (`fromContractTypeId` null). */
+        ContractTypeHistoryEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            employeeId: string;
+            /** Format: uuid */
+            engagementId: string;
+            /**
+             * Format: uuid
+             * @description Null on the first row (hire).
+             */
+            fromContractTypeId?: string | null;
+            /** Format: uuid */
+            toContractTypeId: string;
+            /** Format: date */
+            validFrom: string;
+            reason?: string | null;
+            audit: components["schemas"]["Audit"];
+        };
+        /** @description Does NOT touch `continuousServiceDate` — carry-vs-reset on a contract-type change is parked (OQ-15). */
+        ContractChangeRequest: {
+            /** Format: uuid */
+            toContractTypeId: string;
+            /** Format: date */
+            validFrom: string;
+            reason?: string | null;
         };
     };
     responses: {

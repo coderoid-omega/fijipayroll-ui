@@ -5,14 +5,16 @@ import { FormDrawer } from '@/components';
 import { isApiError } from '@/lib/apiError';
 import { fromApiDate, toApiDate, DISPLAY_DATE_FORMAT } from '@/lib/date';
 import type { Employee, EmployeePatch } from '@/types/api';
-import { useContractTypeOptions, usePatchEmployee, usePayFrequencyOptions } from '../api/hooks';
+import { usePatchEmployee, usePayFrequencyOptions } from '../api/hooks';
 
-export type EmployeeSection = 'personal' | 'statutoryTax' | 'employment' | 'payDetails';
+// Epic 4: 'employment' left this union — ALL of its fields (contract type, continuous service,
+// probation dates) are engagement-cache fields owned by the lifecycle actions, so the section
+// no longer has a PATCH drawer at all.
+export type EmployeeSection = 'personal' | 'statutoryTax' | 'payDetails';
 
 const SECTION_TITLES: Record<EmployeeSection, string> = {
   personal: 'Personal',
   statutoryTax: 'Statutory & Tax',
-  employment: 'Employment',
   payDetails: 'Pay Details',
 };
 
@@ -41,11 +43,6 @@ interface SectionFormValues {
   taxCodeDeclarationDate?: Dayjs | null;
   useSpecialTaxRate?: boolean;
   specialTaxRate?: number | null;
-  // employment
-  contractTypeId?: string;
-  continuousServiceDate?: Dayjs | null;
-  probationStartDate?: Dayjs | null;
-  probationEndDate?: Dayjs | null;
   // pay details
   payFrequencyId?: string | null;
   paymentMethod?: Employee['paymentMethod'] | '';
@@ -64,13 +61,14 @@ const orNull = (v: string | null | undefined): string | null => (v?.trim() ? v.t
  * One section of the 360 form shell (Sprint 2 Epic 2) — PATCHes ONLY its own section's fields
  * (spec §9.1 sectioned update). Position fields, rate, status and loginCode are absent by design:
  * they are owned by transfer/regrade/rate-change (Epic 6), the status action (Epic 5) and
- * enable-login (Epic 3).
+ * enable-login (Epic 3). Epic 4 removed the Employment section entirely — contract type,
+ * continuous service and probation dates are engagement-cache fields owned by the lifecycle
+ * actions (see LifecycleActionModals).
  */
 export function EmployeeSectionDrawer({ open, section, companyId, employee, onClose }: EmployeeSectionDrawerProps) {
   const [form] = Form.useForm<SectionFormValues>();
   const { message } = AntApp.useApp();
   const patchMutation = usePatchEmployee(companyId, employee.id);
-  const contractTypes = useContractTypeOptions();
   const frequencies = usePayFrequencyOptions(companyId);
   const useSpecial = Form.useWatch('useSpecialTaxRate', form);
 
@@ -92,10 +90,6 @@ export function EmployeeSectionDrawer({ open, section, companyId, employee, onCl
       taxCodeDeclarationDate: fromApiDate(employee.taxCodeDeclarationDate),
       useSpecialTaxRate: employee.useSpecialTaxRate ?? false,
       specialTaxRate: employee.specialTaxRate,
-      contractTypeId: employee.contractTypeId ?? undefined,
-      continuousServiceDate: fromApiDate(employee.continuousServiceDate),
-      probationStartDate: fromApiDate(employee.probationStartDate),
-      probationEndDate: fromApiDate(employee.probationEndDate),
       payFrequencyId: employee.payFrequencyId ?? undefined,
       paymentMethod: employee.paymentMethod ?? '',
       isGrossUp: employee.isGrossUp ?? false,
@@ -128,13 +122,6 @@ export function EmployeeSectionDrawer({ open, section, companyId, employee, onCl
           taxCodeDeclarationDate: toApiDate(v.taxCodeDeclarationDate ?? null),
           useSpecialTaxRate: v.useSpecialTaxRate,
           specialTaxRate: v.useSpecialTaxRate ? v.specialTaxRate : null,
-        };
-      case 'employment':
-        return {
-          contractTypeId: v.contractTypeId,
-          continuousServiceDate: toApiDate(v.continuousServiceDate ?? null),
-          probationStartDate: toApiDate(v.probationStartDate ?? null),
-          probationEndDate: toApiDate(v.probationEndDate ?? null),
         };
       case 'payDetails':
         return {
@@ -255,27 +242,6 @@ export function EmployeeSectionDrawer({ open, section, companyId, employee, onCl
                 <InputNumber min={0} max={100} step={0.5} style={{ width: '100%' }} />
               </Form.Item>
             )}
-          </>
-        )}
-        {section === 'employment' && (
-          <>
-            <Form.Item name="contractTypeId" label="Contract type" rules={[{ required: true, message: 'Contract type is required' }]}>
-              <Select
-                loading={contractTypes.isLoading}
-                options={(contractTypes.data ?? [])
-                  .filter((c) => c.status !== 'Inactive' || c.id === employee.contractTypeId)
-                  .map((c) => ({ value: c.id, label: c.name }))}
-              />
-            </Form.Item>
-            <Form.Item name="continuousServiceDate" label="Continuous service date" tooltip="Anchors service-based entitlements; defaults to the hire date">
-              <DatePicker style={{ width: '100%' }} format={DISPLAY_DATE_FORMAT} />
-            </Form.Item>
-            <Form.Item name="probationStartDate" label="Probation start">
-              <DatePicker style={{ width: '100%' }} format={DISPLAY_DATE_FORMAT} />
-            </Form.Item>
-            <Form.Item name="probationEndDate" label="Probation end">
-              <DatePicker style={{ width: '100%' }} format={DISPLAY_DATE_FORMAT} />
-            </Form.Item>
           </>
         )}
         {section === 'payDetails' && (
