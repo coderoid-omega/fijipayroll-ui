@@ -412,7 +412,9 @@ export interface ExitReasonWrite {
 
 // ---- employee (read; Sprint 2 Epic 0 identity split — two codes, not one) ----
 
-export type EmployeeStatus = 'Active' | 'Suspended' | 'Terminated' | 'Inactive';
+/** Epic 5 DROPPED `Inactive` ([S06]) — never defined, never written, strictly dominated by
+ * `Suspended`. (The config lookups' unrelated Active/Inactive enable-flag stays.) */
+export type EmployeeStatus = 'Active' | 'Suspended' | 'Terminated';
 
 /** Present only while status is `Suspended`. */
 export interface Suspension {
@@ -498,6 +500,9 @@ export interface EmployeeCreate {
   contractTypeId: string;
   stageId?: string | null;
   dateOfHire: string;
+  /** Carried-in service (may PREDATE hire — acquisitions, conversions). Defaults to dateOfHire.
+   * Added Epic 5 ([S06] — the write path the EmployeePatch prune removed). */
+  continuousServiceDate?: string | null;
   payType: PayType;
   hourlyRate?: number | null;
   salaryPerPeriod?: number | null;
@@ -638,4 +643,62 @@ export interface ContractChangeRequest {
   toContractTypeId: string;
   validFrom: string;
   reason?: string | null;
+}
+
+// ---- status machine, suspension & exit (Sprint 2 Epic 5) ----
+// Four single-purpose actions ([S06]). State machine: Active→Suspended · Suspended→Active ·
+// Active|Suspended→Terminated · Terminated→Active; everything else 409 INVALID_STATUS_TRANSITION.
+
+export interface SuspendRequest {
+  isPaid: boolean;
+  startDate: string;
+  /** Omit for an open-ended window. */
+  endDate?: string | null;
+  reason: string;
+}
+
+export interface LiftSuspensionRequest {
+  /** Defaults to today; must not precede the window start. */
+  endDate?: string | null;
+  reason?: string | null;
+}
+
+/** `lastWorkingDay` != `terminationEffectiveDate` when notice is paid in lieu — both recorded,
+ * neither derived. The exit reason's FLAGS drive behaviour (D10). */
+export interface TerminateRequest {
+  exitReasonId: string;
+  noticeDate?: string | null;
+  noticePeriodDays?: number | null;
+  lastWorkingDay: string;
+  terminationEffectiveDate: string;
+  noticeHandling: NoticeHandling;
+}
+
+export interface RehireRequest {
+  dateOfHire: string;
+  contractTypeId: string;
+  stageId?: string | null;
+  /** Defaults to dateOfHire; carry-over from the prior engagement is never inferred. */
+  continuousServiceDate?: string | null;
+  /** Proceed despite rehireEligible = false on the prior exit reason. Requires overrideReason. */
+  overrideRehireBlock?: boolean;
+  overrideReason?: string | null;
+}
+
+/** One suspension WINDOW (an interval — [S06-resolved OQ-33]); `endDate` null while open. */
+export interface SuspensionHistoryEntry {
+  id: string;
+  employeeId: string;
+  engagementId: string;
+  isPaid: boolean;
+  startDate: string;
+  endDate?: string | null;
+  reason: string;
+  liftedReason?: string | null;
+  audit: Audit;
+}
+
+/** The continuous-service correction path ([S06]) — deliberately minimal. */
+export interface EngagementPatch {
+  continuousServiceDate: string;
 }

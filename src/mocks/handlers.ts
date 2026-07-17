@@ -23,9 +23,14 @@ import type {
   EmployeePatch,
   EnableLoginRequest,
   Engagement,
+  EngagementPatch,
   ExtendProbationRequest,
   FnpfScheme,
   FnpfSchemeWrite,
+  LiftSuspensionRequest,
+  RehireRequest,
+  SuspendRequest,
+  TerminateRequest,
   Lookup,
   LookupWrite,
   Office,
@@ -51,6 +56,7 @@ import {
   employmentStages,
   engagements,
   stageHistory,
+  suspensionHistory,
   ethnicOrigins,
   exitReasons,
   fnpfSchemes,
@@ -895,6 +901,8 @@ export const employeesHandlers: RequestHandler[] = [
     };
     // Epic 4 (§6): create opens engagement #1 in the same "transaction" — the engagement is
     // authoritative; the employee's fields are its cache. Continuous service defaults to hire.
+    // Continuous service: the supplied carried-in date (Epic 5 — may predate hire), else hire.
+    const csd = body.continuousServiceDate ?? body.dateOfHire;
     const engagement: Engagement = {
       id: newId('en'),
       employeeId: created.id,
@@ -902,13 +910,13 @@ export const employeesHandlers: RequestHandler[] = [
       employeeCode,
       isCurrent: true,
       dateOfHire: body.dateOfHire,
-      continuousServiceDate: body.dateOfHire,
+      continuousServiceDate: csd,
       contractTypeId: body.contractTypeId,
       audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
     };
     engagements.push(engagement);
     created.currentEngagementId = engagement.id;
-    created.continuousServiceDate = body.dateOfHire;
+    created.continuousServiceDate = csd;
     contractTypeHistory.push({
       id: newId('th'),
       employeeId: created.id,
@@ -1184,6 +1192,224 @@ export const employeesHandlers: RequestHandler[] = [
     // continuousServiceDate deliberately untouched — OQ-15 is parked.
     employees[idx] = { ...employee, contractTypeId: contractType.id }; // the cache
     return HttpResponse.json(employees[idx]);
+  }),
+
+  // ---------------- STATUS MACHINE, SUSPENSION & EXIT (Sprint 2 Epic 5) ----------------
+  // Active→Suspended · Suspended→Active · Active|Suspended→Terminated · Terminated→Active;
+  // everything else 409 INVALID_STATUS_TRANSITION. Tenant-only — no login is ever disabled.
+
+  http.post(url('/employees/:id/suspend'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    if (employee.status !== 'Active')
+      return problem(409, 'INVALID_STATUS_TRANSITION', `Cannot suspend an employee whose status is ${employee.status}.`);
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as SuspendRequest;
+    const overlap = suspensionHistory.some(
+      (s) => s.engagementId === engagement.id &&
+        (!body.endDate || s.startDate <= body.endDate) && (!s.endDate || s.endDate >= body.startDate));
+    if (overlap) return problem(409, 'SUSPENSION_OVERLAP', 'The window overlaps an existing suspension on this engagement.');
+
+    suspensionHistory.push({
+      id: newId('su'),
+      employeeId: employee.id,
+      engagementId: engagement.id,
+      isPaid: body.isPaid,
+      startDate: body.startDate,
+      endDate: body.endDate ?? null,
+      reason: body.reason,
+      liftedReason: null,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    });
+    employees[idx] = {
+      ...employee,
+      status: 'Suspended',
+      suspension: { isPaid: body.isPaid, startDate: body.startDate, endDate: body.endDate ?? null, reason: body.reason },
+    };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.post(url('/employees/:id/lift-suspension'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    if (employee.status !== 'Suspended')
+      return problem(409, 'INVALID_STATUS_TRANSITION', `Cannot lift the suspension of an employee whose status is ${employee.status}.`);
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    const window = suspensionHistory.find((s) => s.engagementId === engagement?.id && !s.endDate);
+    if (!window) return problem(422, 'SUSPENSION_WINDOW_MISSING', 'No open suspension window exists for this engagement.');
+
+    const body = (await request.json().catch(() => null)) as LiftSuspensionRequest | null;
+    const endDate = body?.endDate ?? new Date().toISOString().slice(0, 10);
+    if (endDate < window.startDate)
+      return problem(422, 'SUSPENSION_END_BEFORE_START', `endDate must not be before the window's start (${window.startDate}).`);
+
+    window.endDate = endDate;              // the row is edited in place — a window is mutable
+    window.liftedReason = body?.reason ?? null;
+    employees[idx] = { ...employee, status: 'Active', suspension: null };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.post(url('/employees/:id/terminate'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    if (employee.status !== 'Active' && employee.status !== 'Suspended')
+      return problem(409, 'INVALID_STATUS_TRANSITION', `Cannot terminate an employee whose status is ${employee.status}.`);
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as TerminateRequest;
+    const exitReason = exitReasons.find((r) => r.id === body.exitReasonId && r.status === 'Active');
+    if (!exitReason) return problem(422, 'EXIT_REASON_INVALID', 'Exit reason does not exist or is inactive.');
+
+    // An open suspension window closes at TED ([S06] — NOT last_working_day: under PaidInLieu
+    // LWD < TED, and closing at LWD would silently answer OQ-34).
+    const openWindow = suspensionHistory.find((s) => s.engagementId === engagement.id && !s.endDate);
+    if (openWindow) {
+      if (body.terminationEffectiveDate < openWindow.startDate)
+        return problem(422, 'TERMINATION_BEFORE_SUSPENSION',
+          `terminationEffectiveDate precedes the open suspension window's start (${openWindow.startDate}).`);
+      openWindow.endDate = body.terminationEffectiveDate;
+      openWindow.liftedReason = 'Closed by termination';
+    }
+
+    // The exit lands on the engagement; isCurrent stays TRUE ([S06]: most-recent, not employed).
+    engagement.noticeDate = body.noticeDate ?? null;
+    engagement.noticePeriodDays = body.noticePeriodDays ?? null;
+    engagement.lastWorkingDay = body.lastWorkingDay;
+    engagement.terminationEffectiveDate = body.terminationEffectiveDate;
+    engagement.exitReasonId = exitReason.id;
+    engagement.noticeHandling = body.noticeHandling;
+    employees[idx] = {
+      ...employee,
+      status: 'Terminated',
+      dateOfTermination: body.terminationEffectiveDate,
+      suspension: null,   // the cache mirrors the current OPEN window — there is none any more
+    };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.post(url('/employees/:id/rehire'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    if (employee.status !== 'Terminated')
+      return problem(409, 'INVALID_STATUS_TRANSITION', `Cannot rehire an employee whose status is ${employee.status}.`);
+    const prior = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!prior) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as RehireRequest;
+    const priorReason = exitReasons.find((r) => r.id === prior.exitReasonId);
+    if (priorReason && !priorReason.rehireEligible && body.overrideRehireBlock !== true) {
+      return problem(409, 'REHIRE_NOT_ELIGIBLE',
+        `The prior engagement ended with '${priorReason.name}' (${priorReason.code}), which is not rehire-eligible. ` +
+        'Set overrideRehireBlock with an overrideReason to proceed.');
+    }
+    if (body.overrideRehireBlock === true && !body.overrideReason?.trim()) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: { overrideReason: ['overrideReason is mandatory when overriding the rehire block'] },
+      });
+    }
+
+    // Demote-then-promote; then the EIGHT-field cache resync, mirroring the API ([S06j]).
+    prior.isCurrent = false;
+    const csd = body.continuousServiceDate ?? body.dateOfHire;
+    const next: Engagement = {
+      id: newId('en'),
+      employeeId: employee.id,
+      companyId: employee.companyId,
+      employeeCode: employee.employeeCode,   // code unchanged on rehire
+      isCurrent: true,
+      dateOfHire: body.dateOfHire,
+      continuousServiceDate: csd,
+      contractTypeId: body.contractTypeId,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    };
+    engagements.push(next);
+    contractTypeHistory.push({
+      id: newId('th'),
+      employeeId: employee.id,
+      engagementId: next.id,
+      fromContractTypeId: null,
+      toContractTypeId: body.contractTypeId,
+      validFrom: body.dateOfHire,
+      reason: null,
+      audit: next.audit,
+    });
+    if (body.stageId) {
+      stageHistory.push({
+        id: newId('sh'),
+        employeeId: employee.id,
+        engagementId: next.id,
+        fromStageId: null,
+        toStageId: body.stageId,
+        effectiveDate: body.dateOfHire,
+        reason: null,
+        reviewRef: null,
+        audit: next.audit,
+      });
+    }
+    employees[idx] = {
+      ...employee,
+      currentEngagementId: next.id,          // 1
+      dateOfHire: body.dateOfHire,           // 2
+      continuousServiceDate: csd,            // 3
+      contractTypeId: body.contractTypeId,   // 4
+      stageId: body.stageId ?? null,         // 5
+      probationStartDate: null,              // 6
+      probationEndDate: null,                // 7
+      status: 'Active',                      // 8a
+      dateOfTermination: null,               // 8b
+    };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.get(url('/employees/:id/suspension-history'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!employees.some((e) => e.id === params.id && e.companyId === companyId))
+      return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const list = suspensionHistory
+      .filter((s) => s.employeeId === params.id)
+      .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    return HttpResponse.json(list);
+  }),
+
+  http.patch(url('/employees/:id/engagements/:engagementId'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const engagement = engagements.find((g) => g.employeeId === params.id && g.id === params.engagementId);
+    if (!engagement) return problem(404, 'ENGAGEMENT_NOT_FOUND', 'Engagement not found for this employee');
+
+    const body = (await request.json()) as EngagementPatch;
+    if (!body.continuousServiceDate)
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: { continuousServiceDate: ['continuousServiceDate is required'] },
+      });
+    engagement.continuousServiceDate = body.continuousServiceDate;
+    if (engagement.isCurrent)
+      employees[idx] = { ...employees[idx]!, continuousServiceDate: body.continuousServiceDate };
+    return HttpResponse.json(engagement);
   }),
 ];
 

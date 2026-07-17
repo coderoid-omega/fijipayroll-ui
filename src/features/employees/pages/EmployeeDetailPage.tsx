@@ -20,6 +20,13 @@ import {
   StageChangeModal,
   type LifecycleAction,
 } from '../components/LifecycleActionModals';
+import {
+  LiftSuspensionModal,
+  RehireModal,
+  SuspendModal,
+  TerminateModal,
+  type StatusAction,
+} from '../components/StatusActionModals';
 
 function dash(v: string | number | null | undefined): string {
   return v === null || v === undefined || v === '' ? '—' : String(v);
@@ -47,6 +54,7 @@ function EmployeeDetail({
   const [editing, setEditing] = useState<EmployeeSection | null>(null);
   const [assigningLogin, setAssigningLogin] = useState(false);
   const [action, setAction] = useState<LifecycleAction | null>(null);
+  const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
   const contractTypes = useContractTypeOptions();
   const stages = useEmploymentStageOptions();
   const scores = sectionScores(employee);
@@ -230,16 +238,37 @@ function EmployeeDetail({
           </Flex>
           {/* Epic 3: a login CODE, not a credential — canLogin stays false until the
               set-password flow (a later epic), so the honest state is "credentials pending". */}
-          <div>
-            {employee.loginCode ? (
-              <Flex align="center" gap={8}>
-                <Tag color="blue">Login code: {employee.loginCode}</Tag>
-                {!employee.canLogin && <Tag color="orange">credentials pending</Tag>}
-              </Flex>
-            ) : (
-              <Button onClick={() => setAssigningLogin(true)}>Assign login code</Button>
-            )}
-          </div>
+          <Flex vertical align="end" gap={8}>
+            <div>
+              {employee.loginCode ? (
+                <Flex align="center" gap={8}>
+                  <Tag color="blue">Login code: {employee.loginCode}</Tag>
+                  {!employee.canLogin && <Tag color="orange">credentials pending</Tag>}
+                </Flex>
+              ) : (
+                <Button onClick={() => setAssigningLogin(true)} disabled={employee.status === 'Terminated'}>
+                  Assign login code
+                </Button>
+              )}
+            </div>
+            {/* Epic 5: the status machine, source of truth in the API — Active→Suspended ·
+                Suspended→Active · Active|Suspended→Terminated · Terminated→Active. The UI offers
+                exactly those transitions and nothing else. */}
+            <Flex gap={8} wrap>
+              {employee.status === 'Active' && (
+                <Button onClick={() => setStatusAction('suspend')}>Suspend</Button>
+              )}
+              {employee.status === 'Suspended' && (
+                <Button onClick={() => setStatusAction('lift-suspension')}>Lift suspension</Button>
+              )}
+              {(employee.status === 'Active' || employee.status === 'Suspended') && (
+                <Button danger onClick={() => setStatusAction('terminate')}>Terminate</Button>
+              )}
+              {employee.status === 'Terminated' && (
+                <Button type="primary" onClick={() => setStatusAction('rehire')}>Rehire</Button>
+              )}
+            </Flex>
+          </Flex>
         </Flex>
       </Card>
       <Card>
@@ -284,6 +313,30 @@ function EmployeeDetail({
         companyId={companyId}
         employee={employee}
         onClose={() => setAction(null)}
+      />
+      <SuspendModal
+        open={statusAction === 'suspend'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setStatusAction(null)}
+      />
+      <LiftSuspensionModal
+        open={statusAction === 'lift-suspension'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setStatusAction(null)}
+      />
+      <TerminateModal
+        open={statusAction === 'terminate'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setStatusAction(null)}
+      />
+      <RehireModal
+        open={statusAction === 'rehire'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setStatusAction(null)}
       />
     </>
   );

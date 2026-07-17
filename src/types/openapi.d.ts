@@ -3017,6 +3017,337 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suspend the employee (opens a suspension window)
+         * @description Allowed only from `Active`. Opens a window in the suspension HISTORY (an interval, not an as-of event — unpaid suspension is payroll-affecting and Sprint 4 is retro) and mirrors it into the `Employee.suspension` cache; `status` → `Suspended`. Overlapping windows on the engagement are rejected (409 `SUSPENSION_OVERLAP`; a gist EXCLUDE constraint backstops the app check).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SuspendRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/lift-suspension": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lift the employee's suspension (closes the open window)
+         * @description Allowed only from `Suspended`. Sets the open window's `endDate` (defaults to today; must not precede the window's start), records `liftedReason`, clears the suspension cache; `status` → `Active`. The history row is updated in place — lifting early is a correction of the window, and `audit_log` records the edit.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["LiftSuspensionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/terminate": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Terminate the current engagement (records the exit; no separation workflow)
+         * @description Allowed from `Active` or `Suspended`. Writes the exit fields on the CURRENT engagement (they exist since Epic 4, written by nothing until now); `status` → `Terminated`, `dateOfTermination` mirrors `terminationEffectiveDate`. `lastWorkingDay` and `terminationEffectiveDate` are BOTH recorded and never derived from each other — they genuinely differ when notice is paid in lieu. The engagement's `isCurrent` stays TRUE ([S06]: is-current means most-recent, not still-employed). Exit behaviour flags (severance/notice/rehire) come from the exit reason — surfaced, not computed: severance and notice AMOUNTS are the deferred separation workflow. Errors: `EXIT_REASON_INVALID` (422), `INVALID_STATUS_TRANSITION` (409). Never a hard delete (D9).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TerminateRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/rehire": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rehire a terminated employee (opens a NEW engagement)
+         * @description Allowed only from `Terminated`. Opens a new engagement (the old one's history survives intact; it is demoted and the new one becomes current — spec §4) and resyncs the WHOLE employee cache from it. The employee keeps the same `employeeCode` (per-company, never reused). `continuousServiceDate` defaults to the new `dateOfHire`; carry-over from the prior engagement is NEVER inferred (a legal question nobody has answered). If the prior exit reason has `rehireEligible = false` → 409 `REHIRE_NOT_ELIGIBLE` naming it, unless `overrideRehireBlock = true` with a non-empty `overrideReason` (audited) ([S06]). Probation dates reset (the new engagement owns them).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RehireRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/suspension-history": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List the employee's suspension windows, newest first
+         * @description Business history the engine reads ("was this employee on unpaid suspension during period 3?" — Sprint 3 wiring, Sprint 4 retro). An open window has `endDate` null. The `Employee.suspension` block is a cache of the current OPEN window.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SuspensionHistoryEntry"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/engagements/{engagementId}": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                engagementId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Correct an engagement's continuous-service date
+         * @description The correction path the Epic-4 prune left missing ([S06]): carried-in service (may PREDATE hire — acquisitions, contractor conversions) previously had no way to be set or fixed. An engagement field changes via an engagement action, per the cache rule; when the engagement is the current one, the `Employee.continuousServiceDate` cache is resynced. Deliberately minimal — `continuousServiceDate` only. NOT OQ-15 (carry-vs-reset on a contract-type change stays parked; `contract-change` still never touches this date).
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                    engagementId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EngagementPatch"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Engagement"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3082,10 +3413,10 @@ export interface components {
         /** @enum {string} */
         PaymentMethod: "Cash" | "Cheque" | "DirectDeposit";
         /**
-         * @description Sprint 2 adds `Suspended` (paid or unpaid — see `suspension` on Employee).
+         * @description Sprint 2 adds `Suspended` (paid or unpaid — see `suspension` on Employee). Epic 5 DROPS `Inactive` ([S06]): never defined, never written or read, absent from the legacy product, and strictly dominated by `Suspended`. The config lookups' unrelated Active/Inactive enable-flag is a different concept and stays.
          * @enum {string}
          */
-        EmployeeStatus: "Active" | "Suspended" | "Terminated" | "Inactive";
+        EmployeeStatus: "Active" | "Suspended" | "Terminated";
         /**
          * @description Who ended the engagement. `Neither` covers fixed-term expiry, retirement, death.
          * @enum {string}
@@ -3474,6 +3805,11 @@ export interface components {
             stageId?: string | null;
             /** Format: date */
             dateOfHire: string;
+            /**
+             * Format: date
+             * @description Carried-in service (may PREDATE the hire — acquisitions, contractor conversions). Defaults to dateOfHire. Added Epic 5 ([S06] — the write path the EmployeePatch prune removed).
+             */
+            continuousServiceDate?: string | null;
             payType: components["schemas"]["PayType"];
             hourlyRate?: number | null;
             salaryPerPeriod?: number | null;
@@ -3770,6 +4106,86 @@ export interface components {
             /** Format: date */
             validFrom: string;
             reason?: string | null;
+        };
+        SuspendRequest: {
+            /** @description Unpaid suspension is payroll-affecting (engine wiring in Sprint 3). */
+            isPaid: boolean;
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Omit for an open-ended window.
+             */
+            endDate?: string | null;
+            reason: string;
+        };
+        LiftSuspensionRequest: {
+            /**
+             * Format: date
+             * @description Defaults to today; must not precede the window start.
+             */
+            endDate?: string | null;
+            /** @description Recorded as the window's liftedReason. */
+            reason?: string | null;
+        };
+        /** @description Records the exit on the current engagement. `lastWorkingDay` != `terminationEffectiveDate` when notice is paid in lieu — both are recorded, neither is derived. */
+        TerminateRequest: {
+            /**
+             * Format: uuid
+             * @description The flags (severance/notice/rehire) drive behaviour — D10, never a switch on the code.
+             */
+            exitReasonId: string;
+            /** Format: date */
+            noticeDate?: string | null;
+            noticePeriodDays?: number | null;
+            /** Format: date */
+            lastWorkingDay: string;
+            /** Format: date */
+            terminationEffectiveDate: string;
+            /** @enum {string} */
+            noticeHandling: "Served" | "PaidInLieu" | "Waived" | "NotRequired";
+        };
+        RehireRequest: {
+            /** Format: date */
+            dateOfHire: string;
+            /** Format: uuid */
+            contractTypeId: string;
+            /** Format: uuid */
+            stageId?: string | null;
+            /**
+             * Format: date
+             * @description Defaults to dateOfHire. Carry-over from the prior engagement is never inferred.
+             */
+            continuousServiceDate?: string | null;
+            /** @description Proceed despite rehireEligible = false on the prior exit reason. Requires overrideReason. */
+            overrideRehireBlock?: boolean;
+            /** @description Mandatory with overrideRehireBlock; recorded in the audit. */
+            overrideReason?: string | null;
+        };
+        /** @description One suspension WINDOW (an interval, not an as-of event — [S06-resolved OQ-33]). Rows are mutable: lifting early updates `endDate`, and audit_log records the edit. Overlapping windows per engagement are impossible (gist EXCLUDE constraint). */
+        SuspensionHistoryEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            employeeId: string;
+            /** Format: uuid */
+            engagementId: string;
+            isPaid: boolean;
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null while the window is open.
+             */
+            endDate?: string | null;
+            reason: string;
+            liftedReason?: string | null;
+            audit: components["schemas"]["Audit"];
+        };
+        /** @description Deliberately minimal — the continuous-service correction path only ([S06]). */
+        EngagementPatch: {
+            /** Format: date */
+            continuousServiceDate: string;
         };
     };
     responses: {

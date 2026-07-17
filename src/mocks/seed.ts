@@ -24,6 +24,7 @@ import type {
   PayPeriod,
   Lookup,
   StageHistoryEntry,
+  SuspensionHistoryEntry,
   TaxBracket,
   TaxRuleSet,
 } from '@/types/api';
@@ -561,6 +562,10 @@ export const contractTypeHistory: ContractTypeHistoryEntry[] = engagements.map((
 }));
 
 // John Whippy is fixed-term — his engagement carries a term row (a renewal adds a NEW row).
+// Suspension WINDOWS (Epic 5 — intervals, not events; an open window has endDate null).
+// Empty at seed: the demo employees are all Active; the suspend action populates it.
+export const suspensionHistory: SuspensionHistoryEntry[] = [];
+
 export const contractTerms: ContractTerm[] = [
   {
     id: 'tm000000-0000-0000-0000-000000000001',

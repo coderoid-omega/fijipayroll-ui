@@ -10,9 +10,15 @@ import type {
   EmployeePatch,
   EnableLoginRequest,
   Engagement,
+  EngagementPatch,
   ExtendProbationRequest,
+  LiftSuspensionRequest,
+  RehireRequest,
   StageChangeRequest,
   StageHistoryEntry,
+  SuspendRequest,
+  SuspensionHistoryEntry,
+  TerminateRequest,
 } from '@/types/api';
 import type { ListParams } from '@/lib/queryKeys';
 
@@ -64,4 +70,27 @@ export const employeesApi = {
   /** Never touches `continuousServiceDate` (OQ-15 parked). */
   changeContractType: (id: string, body: ContractChangeRequest) =>
     api.post<Employee>(`/employees/${id}/contract-change`, body),
+
+  // ---- status machine, suspension & exit (Epic 5). TENANT-ONLY — terminate disables no login
+  // ([S06-dissolved OQ-32]); the credentials epic owns that question.
+
+  suspend: (id: string, body: SuspendRequest) =>
+    api.post<Employee>(`/employees/${id}/suspend`, body),
+
+  liftSuspension: (id: string, body?: LiftSuspensionRequest) =>
+    api.post<Employee>(`/employees/${id}/lift-suspension`, body ?? {}),
+
+  terminate: (id: string, body: TerminateRequest) =>
+    api.post<Employee>(`/employees/${id}/terminate`, body),
+
+  /** 409 `REHIRE_NOT_ELIGIBLE` unless overridden with a reason (audited). */
+  rehire: (id: string, body: RehireRequest) =>
+    api.post<Employee>(`/employees/${id}/rehire`, body),
+
+  suspensionHistory: (id: string) =>
+    api.get<SuspensionHistoryEntry[]>(`/employees/${id}/suspension-history`),
+
+  /** The continuous-service correction path ([S06]); the cache resyncs when current. */
+  patchEngagement: (id: string, engagementId: string, body: EngagementPatch) =>
+    api.patch<Engagement>(`/employees/${id}/engagements/${engagementId}`, body),
 };

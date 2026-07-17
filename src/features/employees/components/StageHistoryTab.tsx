@@ -1,7 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Flex, Table, Tag, Typography } from 'antd';
 import { formatDate } from '@/lib/date';
-import type { ContractTerm, ContractTypeHistoryEntry, Employee, Engagement, StageHistoryEntry } from '@/types/api';
+import type {
+  ContractTerm,
+  ContractTypeHistoryEntry,
+  Employee,
+  Engagement,
+  StageHistoryEntry,
+  SuspensionHistoryEntry,
+} from '@/types/api';
 import {
   useContractTerms,
   useContractTypeHistory,
@@ -9,6 +16,7 @@ import {
   useEmploymentStageOptions,
   useEngagements,
   useStageHistory,
+  useSuspensionHistory,
 } from '../api/hooks';
 import { ContractTermModal } from './LifecycleActionModals';
 
@@ -30,6 +38,7 @@ export function StageHistoryTab({ companyId, employee }: StageHistoryTabProps) {
   const stageHistory = useStageHistory(companyId, employee.id);
   const contractTypeHistory = useContractTypeHistory(companyId, employee.id);
   const contractTerms = useContractTerms(companyId, employee.id);
+  const suspensionHistory = useSuspensionHistory(companyId, employee.id);
   const stages = useEmploymentStageOptions();
   const contractTypes = useContractTypeOptions();
   const [renewing, setRenewing] = useState<ContractTerm | null>(null);
@@ -114,6 +123,36 @@ export function StageHistoryTab({ companyId, employee }: StageHistoryTabProps) {
             },
             { title: 'To', dataIndex: 'toContractTypeId', render: (v: string) => typeName(v) },
             { title: 'Reason', dataIndex: 'reason', render: (v: string | null) => v ?? '—' },
+          ]}
+        />
+      </Card>
+
+      <Card size="small" title="Suspension history">
+        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+          Suspension is recorded as <b>windows</b> (an interval, not an event) — unpaid windows
+          are payroll-affecting once the engine lands. An open window has no end date.
+        </Typography.Paragraph>
+        <Table<SuspensionHistoryEntry>
+          size="small"
+          rowKey="id"
+          loading={suspensionHistory.isLoading}
+          dataSource={suspensionHistory.data ?? []}
+          pagination={false}
+          columns={[
+            { title: 'From', dataIndex: 'startDate', render: dash },
+            {
+              title: 'To',
+              dataIndex: 'endDate',
+              render: (v: string | null) => (v ? formatDate(v) : <Tag color="orange">open</Tag>),
+            },
+            {
+              title: 'Paid',
+              dataIndex: 'isPaid',
+              render: (v: boolean) =>
+                v ? <Tag>Paid</Tag> : <Tag color="red">Unpaid — payroll-affecting</Tag>,
+            },
+            { title: 'Reason', dataIndex: 'reason' },
+            { title: 'Lifted', dataIndex: 'liftedReason', render: (v: string | null) => v ?? '—' },
           ]}
         />
       </Card>
