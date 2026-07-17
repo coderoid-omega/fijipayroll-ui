@@ -1275,6 +1275,17 @@ export const employeesHandlers: RequestHandler[] = [
     const exitReason = exitReasons.find((r) => r.id === body.exitReasonId && r.status === 'Active');
     if (!exitReason) return problem(422, 'EXIT_REASON_INVALID', 'Exit reason does not exist or is inactive.');
 
+    // An open suspension window closes at TED ([S06] — NOT last_working_day: under PaidInLieu
+    // LWD < TED, and closing at LWD would silently answer OQ-34).
+    const openWindow = suspensionHistory.find((s) => s.engagementId === engagement.id && !s.endDate);
+    if (openWindow) {
+      if (body.terminationEffectiveDate < openWindow.startDate)
+        return problem(422, 'TERMINATION_BEFORE_SUSPENSION',
+          `terminationEffectiveDate precedes the open suspension window's start (${openWindow.startDate}).`);
+      openWindow.endDate = body.terminationEffectiveDate;
+      openWindow.liftedReason = 'Closed by termination';
+    }
+
     // The exit lands on the engagement; isCurrent stays TRUE ([S06]: most-recent, not employed).
     engagement.noticeDate = body.noticeDate ?? null;
     engagement.noticePeriodDays = body.noticePeriodDays ?? null;
@@ -1282,7 +1293,12 @@ export const employeesHandlers: RequestHandler[] = [
     engagement.terminationEffectiveDate = body.terminationEffectiveDate;
     engagement.exitReasonId = exitReason.id;
     engagement.noticeHandling = body.noticeHandling;
-    employees[idx] = { ...employee, status: 'Terminated', dateOfTermination: body.terminationEffectiveDate };
+    employees[idx] = {
+      ...employee,
+      status: 'Terminated',
+      dateOfTermination: body.terminationEffectiveDate,
+      suspension: null,   // the cache mirrors the current OPEN window — there is none any more
+    };
     return HttpResponse.json(employees[idx]);
   }),
 
