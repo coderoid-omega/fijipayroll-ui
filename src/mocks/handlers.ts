@@ -12,12 +12,18 @@ import type {
   CompanyLookup,
   CompanyLookupWrite,
   CompanyWrite,
+  ContractChangeRequest,
+  ContractTerm,
+  ContractTermCreate,
+  ContractTypeHistoryEntry,
   Department,
   DepartmentWrite,
   Employee,
   EmployeeCreate,
   EmployeePatch,
   EnableLoginRequest,
+  Engagement,
+  ExtendProbationRequest,
   FnpfScheme,
   FnpfSchemeWrite,
   Lookup,
@@ -26,12 +32,15 @@ import type {
   OfficeWrite,
   PayElement,
   PayElementWrite,
+  StageChangeRequest,
   TaxRuleSet,
   TaxRuleSetWrite,
 } from '@/types/api';
 import { overallCompleteness } from '@/features/employees/profileCompleteness';
 import {
   companies,
+  contractTerms,
+  contractTypeHistory,
   contractTypes,
   departments,
   DEMO_CREDENTIALS,
@@ -40,6 +49,8 @@ import {
   documentTypes,
   employees,
   employmentStages,
+  engagements,
+  stageHistory,
   ethnicOrigins,
   exitReasons,
   fnpfSchemes,
@@ -882,6 +893,45 @@ export const employeesHandlers: RequestHandler[] = [
       suspension: null,
       audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
     };
+    // Epic 4 (§6): create opens engagement #1 in the same "transaction" — the engagement is
+    // authoritative; the employee's fields are its cache. Continuous service defaults to hire.
+    const engagement: Engagement = {
+      id: newId('en'),
+      employeeId: created.id,
+      companyId,
+      employeeCode,
+      isCurrent: true,
+      dateOfHire: body.dateOfHire,
+      continuousServiceDate: body.dateOfHire,
+      contractTypeId: body.contractTypeId,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    };
+    engagements.push(engagement);
+    created.currentEngagementId = engagement.id;
+    created.continuousServiceDate = body.dateOfHire;
+    contractTypeHistory.push({
+      id: newId('th'),
+      employeeId: created.id,
+      engagementId: engagement.id,
+      fromContractTypeId: null,
+      toContractTypeId: body.contractTypeId,
+      validFrom: body.dateOfHire,
+      reason: null,
+      audit: engagement.audit,
+    });
+    if (body.stageId) {
+      stageHistory.push({
+        id: newId('sh'),
+        employeeId: created.id,
+        engagementId: engagement.id,
+        fromStageId: null,
+        toStageId: body.stageId,
+        effectiveDate: body.dateOfHire,
+        reason: null,
+        reviewRef: null,
+        audit: engagement.audit,
+      });
+    }
     created.profileCompleteness = overallCompleteness(created);
     employees.push(created);
     return HttpResponse.json(created, { status: 201 });
@@ -894,7 +944,12 @@ export const employeesHandlers: RequestHandler[] = [
     const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
     if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
 
-    const body = (await request.json()) as EmployeePatch;
+    const body = (await request.json()) as EmployeePatch & Record<string, unknown>;
+    // Epic 4: the engagement-cache fields left EmployeePatch — like the real API, unknown JSON
+    // members are IGNORED so the cache cannot diverge from the engagement.
+    for (const pruned of ['contractTypeId', 'continuousServiceDate', 'probationStartDate', 'probationEndDate']) {
+      delete body[pruned];
+    }
     if (body.employeeCode !== undefined) {
       const dup = employees.some(
         (e) => e.companyId === companyId && e.id !== params.id &&
@@ -936,6 +991,198 @@ export const employeesHandlers: RequestHandler[] = [
     }
 
     employees[idx] = { ...employee, loginCode, canLogin: false };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  // ---------------- ENGAGEMENTS & LIFECYCLE (Sprint 2 Epic 4) ----------------
+  // The engagement is authoritative; the employee's contract-type / continuous-service /
+  // probation / stage fields are its cache, written only by these actions (never PATCH).
+
+  http.get(url('/employees/:id/engagements'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!employees.some((e) => e.id === params.id && e.companyId === companyId))
+      return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const list = engagements
+      .filter((g) => g.employeeId === params.id)
+      .sort((a, b) => Number(b.isCurrent) - Number(a.isCurrent) || b.dateOfHire.localeCompare(a.dateOfHire));
+    return HttpResponse.json(list);
+  }),
+
+  http.get(url('/employees/:id/contract-terms'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!employees.some((e) => e.id === params.id && e.companyId === companyId))
+      return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const list = contractTerms
+      .filter((t) => t.employeeId === params.id)
+      .sort((a, b) => b.termStart.localeCompare(a.termStart));
+    return HttpResponse.json(list);
+  }),
+
+  http.post(url('/employees/:id/contract-terms'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const employee = employees.find((e) => e.id === params.id && e.companyId === companyId);
+    if (!employee) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as ContractTermCreate;
+    if (!body.termStart) {
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: { termStart: ['Term start is required'] },
+      });
+    }
+    if (body.termEnd && body.termEnd < body.termStart)
+      return problem(422, 'CONTRACT_TERM_ORDER_INVALID', 'termEnd must not be before termStart (ck_term_order).');
+    if (body.renewalOf) {
+      const renewed = contractTerms.find((t) => t.id === body.renewalOf);
+      if (!renewed || renewed.engagementId !== engagement.id)
+        return problem(422, 'CONTRACT_TERM_RENEWAL_INVALID',
+          "renewalOf does not resolve to a contract term of this employee's current engagement.");
+    }
+    // A renewal is a NEW row, never an overwrite (spec §5.2).
+    const created: ContractTerm = {
+      id: newId('tm'),
+      employeeId: employee.id,
+      engagementId: engagement.id,
+      termStart: body.termStart,
+      termEnd: body.termEnd ?? null,
+      renewalOf: body.renewalOf ?? null,
+      signedDate: body.signedDate ?? null,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    };
+    contractTerms.push(created);
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
+  http.get(url('/employees/:id/stage-history'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!employees.some((e) => e.id === params.id && e.companyId === companyId))
+      return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const list = stageHistory
+      .filter((s) => s.employeeId === params.id)
+      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
+    return HttpResponse.json(list);
+  }),
+
+  http.post(url('/employees/:id/stage-change'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as StageChangeRequest;
+    const stage = employmentStages.find((s) => s.id === body.toStageId && s.status === 'Active');
+    if (!stage) return problem(422, 'EMPLOYMENT_STAGE_INVALID', 'Employment stage does not exist or is inactive.');
+    if (stageHistory.some((s) => s.engagementId === engagement.id && s.effectiveDate === body.effectiveDate))
+      return problem(409, 'STAGE_CHANGE_DATE_CONFLICT',
+        `A stage-history row already exists for ${body.effectiveDate} on this engagement.`);
+
+    stageHistory.push({
+      id: newId('sh'),
+      employeeId: employee.id,
+      engagementId: engagement.id,
+      fromStageId: employee.stageId ?? null,   // server-filled from the current stage
+      toStageId: stage.id,
+      effectiveDate: body.effectiveDate,
+      reason: body.reason ?? null,
+      reviewRef: body.reviewRef ?? null,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    });
+    employees[idx] = { ...employee, stageId: stage.id };   // the cache, same "transaction"
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.post(url('/employees/:id/extend-probation'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    const stage = employmentStages.find((s) => s.id === employee.stageId);
+    if (!stage?.isProbationary)
+      return problem(422, 'EMPLOYEE_NOT_ON_PROBATION',
+        "Probation can only be extended while the employee's current stage is probationary.");
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as ExtendProbationRequest;
+    const effectiveDate = new Date().toISOString().slice(0, 10);
+    if (stageHistory.some((s) => s.engagementId === engagement.id && s.effectiveDate === effectiveDate))
+      return problem(409, 'STAGE_CHANGE_DATE_CONFLICT',
+        `A stage-history row already exists for ${effectiveDate} on this engagement.`);
+
+    // from === to deliberately: an extension is NOT a new stage (spec §9.1).
+    stageHistory.push({
+      id: newId('sh'),
+      employeeId: employee.id,
+      engagementId: engagement.id,
+      fromStageId: stage.id,
+      toStageId: stage.id,
+      effectiveDate,
+      reason: body.reason,
+      reviewRef: null,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    });
+    employees[idx] = { ...employee, probationEndDate: body.newEndDate };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.get(url('/employees/:id/contract-type-history'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!employees.some((e) => e.id === params.id && e.companyId === companyId))
+      return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const list = contractTypeHistory
+      .filter((h) => h.employeeId === params.id)
+      .sort((a, b) => b.validFrom.localeCompare(a.validFrom));
+    return HttpResponse.json(list);
+  }),
+
+  http.post(url('/employees/:id/contract-change'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as ContractChangeRequest;
+    const contractType = contractTypes.find((c) => c.id === body.toContractTypeId && c.status === 'Active');
+    if (!contractType) return problem(422, 'CONTRACT_TYPE_INVALID', 'Contract type does not exist or is inactive.');
+    if (contractTypeHistory.some((h) => h.engagementId === engagement.id && h.validFrom === body.validFrom))
+      return problem(409, 'CONTRACT_CHANGE_DATE_CONFLICT',
+        `A contract-type-history row already exists for ${body.validFrom} on this engagement.`);
+
+    const entry: ContractTypeHistoryEntry = {
+      id: newId('th'),
+      employeeId: employee.id,
+      engagementId: engagement.id,
+      fromContractTypeId: engagement.contractTypeId,
+      toContractTypeId: contractType.id,
+      validFrom: body.validFrom,
+      reason: body.reason ?? null,
+      audit: { createdAt: new Date().toISOString(), createdBy: 'mock', updatedAt: null, updatedBy: null },
+    };
+    contractTypeHistory.push(entry);
+    engagement.contractTypeId = contractType.id;                       // authoritative
+    // continuousServiceDate deliberately untouched — OQ-15 is parked.
+    employees[idx] = { ...employee, contractTypeId: contractType.id }; // the cache
     return HttpResponse.json(employees[idx]);
   }),
 ];

@@ -518,7 +518,10 @@ export interface EnableLoginRequest {
 
 /** Contract `EmployeePatch` — sectioned partial update (merge-patch: ABSENT = unchanged, explicit
  * null = clear). Position fields, `status` and `loginCode` are deliberately absent — they are
- * owned by transfer/regrade/rate-change (Epic 6), the status action (Epic 5) and enable-login. */
+ * owned by transfer/regrade/rate-change (Epic 6), the status action (Epic 5) and enable-login.
+ * Epic 4 BREAK: `contractTypeId` / `continuousServiceDate` / `probationStartDate` /
+ * `probationEndDate` are REMOVED — engagement-cache fields, owned by the engagement actions
+ * (contract-change, stage-change, extend-probation). */
 export interface EmployeePatch {
   employeeCode?: string;
   firstName?: string;
@@ -535,7 +538,6 @@ export interface EmployeePatch {
   useSpecialTaxRate?: boolean;
   specialTaxRate?: number | null;
   taxCodeDeclarationDate?: string | null;
-  contractTypeId?: string;
   payFrequencyId?: string | null;
   /** Send null to CLEAR the payment method; omit to leave it unchanged. */
   paymentMethod?: PaymentMethod | null;
@@ -543,10 +545,97 @@ export interface EmployeePatch {
   standardHours?: number | null;
   salaryOtRate?: number | null;
   reportsToEmployeeId?: string | null;
-  continuousServiceDate?: string | null;
-  probationStartDate?: string | null;
-  probationEndDate?: string | null;
   bankName?: string | null;
   bankAccountNo?: string | null;
   bankBranch?: string | null;
+}
+
+// ---- engagements & lifecycle history (Sprint 2 Epic 4) ----
+
+export type NoticeHandling = 'Served' | 'PaidInLieu' | 'Waived' | 'NotRequired';
+
+/** One hire→terminate cycle (spec §4). AUTHORITATIVE for contract type / continuous service /
+ * hire date; the same-named `Employee` fields are a cache of the CURRENT engagement, written only
+ * by the engagement actions — never by PATCH. Exit fields are written by Epic 5's terminate. */
+export interface Engagement {
+  id: string;
+  employeeId: string;
+  companyId: string;
+  /** The code held during THIS engagement (per-cycle fact, not a cache). */
+  employeeCode: string;
+  isCurrent: boolean;
+  dateOfHire: string;
+  continuousServiceDate?: string | null;
+  contractTypeId: string;
+  noticeDate?: string | null;
+  noticePeriodDays?: number | null;
+  lastWorkingDay?: string | null;
+  terminationEffectiveDate?: string | null;
+  exitReasonId?: string | null;
+  noticeHandling?: NoticeHandling | null;
+  audit: Audit;
+}
+
+/** A contract term on an engagement — a renewal is a NEW row linked via `renewalOf`. */
+export interface ContractTerm {
+  id: string;
+  employeeId: string;
+  engagementId: string;
+  termStart: string;
+  termEnd?: string | null;
+  renewalOf?: string | null;
+  signedDate?: string | null;
+  audit: Audit;
+}
+
+export interface ContractTermCreate {
+  termStart: string;
+  termEnd?: string | null;
+  renewalOf?: string | null;
+  signedDate?: string | null;
+}
+
+/** A stage transition. A probation EXTENSION appears with `fromStageId` === `toStageId`. */
+export interface StageHistoryEntry {
+  id: string;
+  employeeId: string;
+  engagementId: string;
+  fromStageId?: string | null;
+  toStageId: string;
+  effectiveDate: string;
+  reason?: string | null;
+  reviewRef?: string | null;
+  audit: Audit;
+}
+
+export interface StageChangeRequest {
+  toStageId: string;
+  effectiveDate: string;
+  reason?: string | null;
+  reviewRef?: string | null;
+}
+
+export interface ExtendProbationRequest {
+  newEndDate: string;
+  reason: string;
+}
+
+/** A contract-type change — business history the engine reads; first row of each engagement is
+ * the hire (`fromContractTypeId` null). */
+export interface ContractTypeHistoryEntry {
+  id: string;
+  employeeId: string;
+  engagementId: string;
+  fromContractTypeId?: string | null;
+  toContractTypeId: string;
+  validFrom: string;
+  reason?: string | null;
+  audit: Audit;
+}
+
+/** Deliberately does NOT touch `continuousServiceDate` — carry-vs-reset is parked (OQ-15). */
+export interface ContractChangeRequest {
+  toContractTypeId: string;
+  validFrom: string;
+  reason?: string | null;
 }

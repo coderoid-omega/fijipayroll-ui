@@ -7,10 +7,13 @@
 import type {
   Company,
   CompanyLookup,
+  ContractTerm,
   ContractType,
+  ContractTypeHistoryEntry,
   Department,
   Employee,
   EmploymentStage,
+  Engagement,
   ExitReason,
   FnpfScheme,
   Me,
@@ -20,6 +23,7 @@ import type {
   PayGroup,
   PayPeriod,
   Lookup,
+  StageHistoryEntry,
   TaxBracket,
   TaxRuleSet,
 } from '@/types/api';
@@ -405,6 +409,11 @@ export const employees: Employee[] = [
     occupationId: 'oc000000-0000-0000-0000-000000000001',
     standardHours: 160,
     status: 'Active',
+    // Epic 4: engagement cache — mirrors the current engagement (the backfill shape).
+    contractTypeId: 'ct000000-0000-0000-0000-000000000001',
+    stageId: 'es000000-0000-0000-0000-000000000003',
+    currentEngagementId: 'en000000-0000-0000-0000-000000000001',
+    continuousServiceDate: '2021-03-01',
     audit,
   },
   {
@@ -429,6 +438,12 @@ export const employees: Employee[] = [
     occupationId: 'oc000000-0000-0000-0000-000000000002',
     standardHours: 160,
     status: 'Active',
+    contractTypeId: 'ct000000-0000-0000-0000-000000000003',
+    stageId: 'es000000-0000-0000-0000-000000000002',
+    currentEngagementId: 'en000000-0000-0000-0000-000000000002',
+    continuousServiceDate: '2022-09-15',
+    probationStartDate: '2026-06-01',
+    probationEndDate: '2026-09-01',
     audit,
   },
   {
@@ -449,6 +464,112 @@ export const employees: Employee[] = [
     paymentMethod: 'DirectDeposit',
     standardHours: 160,
     status: 'Active',
+    contractTypeId: 'ct000000-0000-0000-0000-000000000002',
+    stageId: 'es000000-0000-0000-0000-000000000003',
+    currentEngagementId: 'en000000-0000-0000-0000-000000000003',
+    continuousServiceDate: '2023-01-10',
+    audit,
+  },
+];
+
+// ---- engagements & lifecycle history (Sprint 2 Epic 4) ----
+// Mirrors the API's backfill: every employee has exactly one CURRENT engagement whose
+// contract-type / continuous-service values agree with the employee cache, and the timelines
+// start at hire (first contract-type row from null; first stage row where a stage is set).
+
+export const engagements: Engagement[] = [
+  {
+    id: 'en000000-0000-0000-0000-000000000001',
+    employeeId: 'em000000-0000-0000-0000-000000000001',
+    companyId: IDS.companyDemo,
+    employeeCode: 'EMP001',
+    isCurrent: true,
+    dateOfHire: '2021-03-01',
+    continuousServiceDate: '2021-03-01',
+    contractTypeId: 'ct000000-0000-0000-0000-000000000001',
+    audit,
+  },
+  {
+    id: 'en000000-0000-0000-0000-000000000002',
+    employeeId: 'em000000-0000-0000-0000-000000000002',
+    companyId: IDS.companyDemo,
+    employeeCode: 'EMP002',
+    isCurrent: true,
+    dateOfHire: '2022-09-15',
+    continuousServiceDate: '2022-09-15',
+    contractTypeId: 'ct000000-0000-0000-0000-000000000003',
+    audit,
+  },
+  {
+    id: 'en000000-0000-0000-0000-000000000003',
+    employeeId: 'em000000-0000-0000-0000-000000000003',
+    companyId: IDS.companySample,
+    employeeCode: 'EMP100',
+    isCurrent: true,
+    dateOfHire: '2023-01-10',
+    continuousServiceDate: '2023-01-10',
+    contractTypeId: 'ct000000-0000-0000-0000-000000000002',
+    audit,
+  },
+];
+
+export const stageHistory: StageHistoryEntry[] = [
+  {
+    id: 'sh000000-0000-0000-0000-000000000001',
+    employeeId: 'em000000-0000-0000-0000-000000000001',
+    engagementId: 'en000000-0000-0000-0000-000000000001',
+    fromStageId: null,
+    toStageId: 'es000000-0000-0000-0000-000000000003',
+    effectiveDate: '2021-03-01',
+    reason: null,
+    reviewRef: null,
+    audit,
+  },
+  {
+    id: 'sh000000-0000-0000-0000-000000000002',
+    employeeId: 'em000000-0000-0000-0000-000000000002',
+    engagementId: 'en000000-0000-0000-0000-000000000002',
+    fromStageId: null,
+    toStageId: 'es000000-0000-0000-0000-000000000002',
+    effectiveDate: '2022-09-15',
+    reason: null,
+    reviewRef: null,
+    audit,
+  },
+  {
+    id: 'sh000000-0000-0000-0000-000000000003',
+    employeeId: 'em000000-0000-0000-0000-000000000003',
+    engagementId: 'en000000-0000-0000-0000-000000000003',
+    fromStageId: null,
+    toStageId: 'es000000-0000-0000-0000-000000000003',
+    effectiveDate: '2023-01-10',
+    reason: null,
+    reviewRef: null,
+    audit,
+  },
+];
+
+export const contractTypeHistory: ContractTypeHistoryEntry[] = engagements.map((g, i) => ({
+  id: `th000000-0000-0000-0000-00000000000${i + 1}`,
+  employeeId: g.employeeId,
+  engagementId: g.id,
+  fromContractTypeId: null,
+  toContractTypeId: g.contractTypeId,
+  validFrom: g.dateOfHire,
+  reason: null,
+  audit,
+}));
+
+// John Whippy is fixed-term — his engagement carries a term row (a renewal adds a NEW row).
+export const contractTerms: ContractTerm[] = [
+  {
+    id: 'tm000000-0000-0000-0000-000000000001',
+    employeeId: 'em000000-0000-0000-0000-000000000003',
+    engagementId: 'en000000-0000-0000-0000-000000000003',
+    termStart: '2023-01-10',
+    termEnd: '2027-01-09',
+    renewalOf: null,
+    signedDate: '2023-01-05',
     audit,
   },
 ];

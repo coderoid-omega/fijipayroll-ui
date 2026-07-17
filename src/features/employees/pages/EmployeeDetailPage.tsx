@@ -8,20 +8,32 @@ import { formatDate } from '@/lib/date';
 import { formatMoney } from '@/lib/money';
 import { humanize } from '@/lib/format';
 import type { Employee } from '@/types/api';
-import { useEmployee } from '../api/hooks';
+import { useContractTypeOptions, useEmployee, useEmploymentStageOptions } from '../api/hooks';
 import { sectionScores } from '../profileCompleteness';
 import { EmployeeSectionDrawer, type EmployeeSection } from '../components/EmployeeSectionDrawer';
 import { AssignLoginCodeModal } from '../components/AssignLoginCodeModal';
+import { StageHistoryTab } from '../components/StageHistoryTab';
+import {
+  ContractChangeModal,
+  ContractTermModal,
+  ExtendProbationModal,
+  StageChangeModal,
+  type LifecycleAction,
+} from '../components/LifecycleActionModals';
 
 function dash(v: string | number | null | undefined): string {
   return v === null || v === undefined || v === '' ? '—' : String(v);
 }
 
+type SectionKey = ReturnType<typeof sectionScores>[number]['key'];
+
 /**
  * The 360 form shell (Sprint 2 Epic 2): Personal · Statutory & Tax · Employment · Pay Details,
- * each editable via its own sectioned PATCH; later tabs (engagements, position timeline, YTD,
- * collections, audit) arrive with Epics 4-11. The completeness indicator combines the API's
- * authoritative `profileCompleteness` with the shared per-section map.
+ * each editable via its own sectioned PATCH — except Employment (Epic 4): its fields are a cache
+ * of the CURRENT engagement, written only by the lifecycle actions (stage-change /
+ * extend-probation / contract-change), never by PATCH. The Stage & History tab shows the
+ * resulting business timelines. Later tabs (position timeline, YTD, collections, audit) arrive
+ * with Epics 6-11.
  */
 function EmployeeDetail({
   employee,
@@ -34,10 +46,18 @@ function EmployeeDetail({
 }) {
   const [editing, setEditing] = useState<EmployeeSection | null>(null);
   const [assigningLogin, setAssigningLogin] = useState(false);
+  const [action, setAction] = useState<LifecycleAction | null>(null);
+  const contractTypes = useContractTypeOptions();
+  const stages = useEmploymentStageOptions();
   const scores = sectionScores(employee);
-  const scoreOf = (key: EmployeeSection) => scores.find((s) => s.key === key)!;
+  const scoreOf = (key: SectionKey) => scores.find((s) => s.key === key)!;
+  const contractTypeName =
+    contractTypes.data?.find((c) => c.id === employee.contractTypeId)?.name ??
+    (employee.contractTypeId ? 'Set' : null);
+  const stageName =
+    stages.data?.find((s) => s.id === employee.stageId)?.name ?? (employee.stageId ? 'Set' : null);
 
-  const sectionLabel = (key: EmployeeSection, label: string) => {
+  const sectionLabel = (key: SectionKey, label: string) => {
     const s = scoreOf(key);
     return (
       <Tooltip title={`${s.populated} of ${s.total} fields completed`}>
@@ -107,13 +127,21 @@ function EmployeeDetail({
       label: sectionLabel('employment', 'Employment'),
       children: (
         <>
-          {editButton('employment')}
+          {/* Epic 4: no Edit drawer here — these are engagement-cache fields, written only by
+              the lifecycle actions so every change lands on the business timeline. */}
+          <Flex gap={8} wrap style={{ marginBottom: 12 }}>
+            <Button onClick={() => setAction('stage-change')}>Change stage</Button>
+            <Button onClick={() => setAction('extend-probation')}>Extend probation</Button>
+            <Button onClick={() => setAction('contract-change')}>Change contract type</Button>
+            <Button onClick={() => setAction('contract-term')}>Add contract term</Button>
+          </Flex>
           <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }}>
             <Descriptions.Item label="Date of hire">{formatDate(employee.dateOfHire)}</Descriptions.Item>
-            <Descriptions.Item label="Contract type">{dash(employee.contractTypeId && 'Set')}</Descriptions.Item>
+            <Descriptions.Item label="Contract type">{dash(contractTypeName)}</Descriptions.Item>
+            <Descriptions.Item label="Stage">{dash(stageName)}</Descriptions.Item>
             <Descriptions.Item label="Continuous service">{formatDate(employee.continuousServiceDate)}</Descriptions.Item>
             <Descriptions.Item label="Probation">
-              {employee.probationStartDate
+              {employee.probationStartDate || employee.probationEndDate
                 ? `${formatDate(employee.probationStartDate)} → ${formatDate(employee.probationEndDate)}`
                 : '—'}
             </Descriptions.Item>
@@ -122,11 +150,16 @@ function EmployeeDetail({
             style={{ marginTop: 12 }}
             type="info"
             showIcon
-            message="Engagements, stage history and position (division/department/grade/level) arrive with Epics 4-6"
-            description="Placement, job and rate changes will be made through the transfer / regrade / rate-change actions so every change lands on the position timeline."
+            message="These fields mirror the current engagement"
+            description="Contract type, stage, continuous service and probation are owned by the actions above — each change is recorded on the Stage & History tab. Position changes (transfer / regrade / rate-change) arrive with Epic 6."
           />
         </>
       ),
+    },
+    {
+      key: 'stageHistory',
+      label: 'Stage & History',
+      children: <StageHistoryTab companyId={companyId} employee={employee} />,
     },
     {
       key: 'payDetails',
@@ -227,6 +260,30 @@ function EmployeeDetail({
         companyCode={companyCode}
         employee={employee}
         onClose={() => setAssigningLogin(false)}
+      />
+      <StageChangeModal
+        open={action === 'stage-change'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setAction(null)}
+      />
+      <ExtendProbationModal
+        open={action === 'extend-probation'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setAction(null)}
+      />
+      <ContractChangeModal
+        open={action === 'contract-change'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setAction(null)}
+      />
+      <ContractTermModal
+        open={action === 'contract-term'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setAction(null)}
       />
     </>
   );

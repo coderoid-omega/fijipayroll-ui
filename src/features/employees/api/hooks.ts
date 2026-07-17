@@ -2,12 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/apiClient';
 import { queryKeys, type ListParams } from '@/lib/queryKeys';
 import type {
+  ContractChangeRequest,
+  ContractTermCreate,
   ContractType,
+  Employee,
   EmployeeCreate,
   EmployeePatch,
   EmploymentStage,
   EnableLoginRequest,
+  ExtendProbationRequest,
   PayFrequency,
+  StageChangeRequest,
 } from '@/types/api';
 import { employeesApi } from './employeesApi';
 
@@ -82,5 +87,81 @@ export function useEnableLogin(companyId: string, id: string) {
       qc.setQueryData(queryKeys.employees.detail(companyId, id), updated);
       void qc.invalidateQueries({ queryKey: queryKeys.employees.all(companyId) });
     },
+  });
+}
+
+// ---- engagements & lifecycle (Epic 4) ----
+
+export function useEngagements(companyId: string, id: string) {
+  return useQuery({
+    queryKey: queryKeys.employees.engagements(companyId, id),
+    queryFn: () => employeesApi.engagements(id),
+    enabled: Boolean(companyId && id),
+  });
+}
+
+export function useContractTerms(companyId: string, id: string) {
+  return useQuery({
+    queryKey: queryKeys.employees.contractTerms(companyId, id),
+    queryFn: () => employeesApi.contractTerms(id),
+    enabled: Boolean(companyId && id),
+  });
+}
+
+export function useStageHistory(companyId: string, id: string) {
+  return useQuery({
+    queryKey: queryKeys.employees.stageHistory(companyId, id),
+    queryFn: () => employeesApi.stageHistory(id),
+    enabled: Boolean(companyId && id),
+  });
+}
+
+export function useContractTypeHistory(companyId: string, id: string) {
+  return useQuery({
+    queryKey: queryKeys.employees.contractTypeHistory(companyId, id),
+    queryFn: () => employeesApi.contractTypeHistory(id),
+    enabled: Boolean(companyId && id),
+  });
+}
+
+/** Shared onSuccess for the lifecycle actions: they return the updated Employee (cache updated
+ * server-side in the same transaction as the history row), and every history list under the
+ * detail subtree gets refetched. */
+function useLifecycleMutation<TBody>(
+  companyId: string,
+  id: string,
+  mutationFn: (body: TBody) => Promise<Employee>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: (updated) => {
+      qc.setQueryData(queryKeys.employees.detail(companyId, id), updated);
+      void qc.invalidateQueries({ queryKey: queryKeys.employees.all(companyId) });
+    },
+  });
+}
+
+export function useChangeStage(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: StageChangeRequest) =>
+    employeesApi.changeStage(id, body));
+}
+
+export function useExtendProbation(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: ExtendProbationRequest) =>
+    employeesApi.extendProbation(id, body));
+}
+
+export function useChangeContractType(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: ContractChangeRequest) =>
+    employeesApi.changeContractType(id, body));
+}
+
+export function useCreateContractTerm(companyId: string, id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ContractTermCreate) => employeesApi.createContractTerm(id, body),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: queryKeys.employees.contractTerms(companyId, id) }),
   });
 }
