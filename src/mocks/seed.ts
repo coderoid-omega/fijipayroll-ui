@@ -23,6 +23,7 @@ import type {
   PayGroup,
   PayPeriod,
   Lookup,
+  PositionTimelineEntry,
   StageHistoryEntry,
   SuspensionHistoryEntry,
   TaxBracket,
@@ -565,6 +566,24 @@ export const contractTypeHistory: ContractTypeHistoryEntry[] = engagements.map((
 // Suspension WINDOWS (Epic 5 — intervals, not events; an open window has endDate null).
 // Empty at seed: the demo employees are all Active; the suspend action populates it.
 export const suspensionHistory: SuspensionHistoryEntry[] = [];
+
+// Position timeline (Epic 6). Stored with employeeId so the mock GET can filter; the response
+// shape is PositionTimelineEntry (§8.5 UNION). Each engagement starts with a HIRE row per axis,
+// mirroring the API backfill; regrade / rate-change append new rows.
+export interface MockPositionEntry extends PositionTimelineEntry {
+  employeeId: string;
+}
+export const positionHistory: MockPositionEntry[] = engagements.flatMap((g) =>
+  (['PLACEMENT', 'JOB', 'RATE'] as const).map((axis) => ({
+    employeeId: g.employeeId,
+    validFrom: g.dateOfHire,
+    axis,
+    changeType: 'HIRE',
+    reason: null,
+    createdBy: 'system',
+    createdAt: now,
+  })),
+);
 
 export const contractTerms: ContractTerm[] = [
   {

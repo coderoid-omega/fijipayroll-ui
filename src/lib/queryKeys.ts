@@ -76,5 +76,7 @@ export const queryKeys = {
       ['employees', companyId, 'detail', id, 'contract-type-history'] as const,
     suspensionHistory: (companyId: string, id: string) =>
       ['employees', companyId, 'detail', id, 'suspension-history'] as const,
+    positionHistory: (companyId: string, id: string) =>
+      ['employees', companyId, 'detail', id, 'position-history'] as const,
   },
 } as const;

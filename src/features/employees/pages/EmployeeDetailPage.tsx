@@ -13,6 +13,7 @@ import { sectionScores } from '../profileCompleteness';
 import { EmployeeSectionDrawer, type EmployeeSection } from '../components/EmployeeSectionDrawer';
 import { AssignLoginCodeModal } from '../components/AssignLoginCodeModal';
 import { StageHistoryTab } from '../components/StageHistoryTab';
+import { PositionTimelineTab } from '../components/PositionTimelineTab';
 import {
   ContractChangeModal,
   ContractTermModal,
@@ -27,6 +28,11 @@ import {
   TerminateModal,
   type StatusAction,
 } from '../components/StatusActionModals';
+import {
+  RateChangeModal,
+  RegradeModal,
+  type PositionAction,
+} from '../components/PositionActionModals';
 
 function dash(v: string | number | null | undefined): string {
   return v === null || v === undefined || v === '' ? '—' : String(v);
@@ -55,6 +61,7 @@ function EmployeeDetail({
   const [assigningLogin, setAssigningLogin] = useState(false);
   const [action, setAction] = useState<LifecycleAction | null>(null);
   const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
+  const [positionAction, setPositionAction] = useState<PositionAction | null>(null);
   const contractTypes = useContractTypeOptions();
   const stages = useEmploymentStageOptions();
   const scores = sectionScores(employee);
@@ -142,6 +149,8 @@ function EmployeeDetail({
             <Button onClick={() => setAction('extend-probation')}>Extend probation</Button>
             <Button onClick={() => setAction('contract-change')}>Change contract type</Button>
             <Button onClick={() => setAction('contract-term')}>Add contract term</Button>
+            <Button onClick={() => setPositionAction('regrade')}>Regrade</Button>
+            <Button onClick={() => setPositionAction('rate-change')}>Change rate</Button>
           </Flex>
           <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }}>
             <Descriptions.Item label="Date of hire">{formatDate(employee.dateOfHire)}</Descriptions.Item>
@@ -159,7 +168,7 @@ function EmployeeDetail({
             type="info"
             showIcon
             message="These fields mirror the current engagement"
-            description="Contract type, stage, continuous service and probation are owned by the actions above — each change is recorded on the Stage & History tab. Position changes (transfer / regrade / rate-change) arrive with Epic 6."
+            description="Contract type, stage, continuous service and probation are owned by the actions above and recorded on the Stage & History tab; regrade and rate change are recorded on the Position Timeline tab. Backdating is safe — every change is a new row and current values resolve as-of today. Transfer arrives with Epic 8."
           />
         </>
       ),
@@ -168,6 +177,11 @@ function EmployeeDetail({
       key: 'stageHistory',
       label: 'Stage & History',
       children: <StageHistoryTab companyId={companyId} employee={employee} />,
+    },
+    {
+      key: 'positionTimeline',
+      label: 'Position Timeline',
+      children: <PositionTimelineTab companyId={companyId} employee={employee} />,
     },
     {
       key: 'payDetails',
@@ -337,6 +351,18 @@ function EmployeeDetail({
         companyId={companyId}
         employee={employee}
         onClose={() => setStatusAction(null)}
+      />
+      <RegradeModal
+        open={positionAction === 'regrade'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setPositionAction(null)}
+      />
+      <RateChangeModal
+        open={positionAction === 'rate-change'}
+        companyId={companyId}
+        employee={employee}
+        onClose={() => setPositionAction(null)}
       />
     </>
   );

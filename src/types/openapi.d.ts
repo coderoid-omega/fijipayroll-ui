@@ -3291,6 +3291,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{id}/regrade": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regrade the employee (what you ARE — occupation / grade / level)
+         * @description Writes one `employee_job_history` row on the current engagement. Backdating is ALLOWED (rows slot in; later rows are deliberate decisions and stand). One row per `(engagement, validFrom)` per axis — a duplicate date is 409 `REGRADE_DATE_CONFLICT`, never an upsert. The employee's occupation/grade/level cache resolves as-of today. Errors: `OCCUPATION_INVALID` / `GRADE_INVALID` / `LEVEL_INVALID` (422 — grade and level are company-scoped), `REGRADE_EMPTY` (422 — supply at least one field), `ENGAGEMENT_MISSING` (422).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RegradeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/rate-change": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the employee's rate (what you're PAID) — Sprint 3/4's retro-pay input
+         * @description Writes one `employee_rate_history` row on the current engagement. The rate must match the pay type (`ck_rate_by_type`). Backdating is ALLOWED and correct for every later date — rate lives on its own axis, so no other row goes stale; entering a raise in advance is normal practice and it applies when it matures, not before. Duplicate date → 409 `RATE_CHANGE_DATE_CONFLICT`. No minimum-wage gate (OQ-23 open — progressive, [S06]).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RateChangeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Employee"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationProblem"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/position-history": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                "X-Company-Id": components["parameters"]["CompanyId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The merged position timeline (a UNION over the three axes), newest first
+         * @description A read concern, not a storage one (§8.5): placement + job + rate rows interleaved by date. A promotion shows as TWO entries (JOB + RATE) on one date — honest; they were two actions, and audit_log records who ran each.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Active company (brand) the request is scoped to. Tenant comes from the JWT. */
+                    "X-Company-Id": components["parameters"]["CompanyId"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PositionTimelineEntry"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{id}/engagements/{engagementId}": {
         parameters: {
             query?: never;
@@ -4186,6 +4348,66 @@ export interface components {
         EngagementPatch: {
             /** Format: date */
             continuousServiceDate: string;
+        };
+        /** @description One decision on the JOB axis (what you are). Every row states ALL of its own fields — omitted fields land as null on the row, which is what makes backdating safe. Supply at least one of occupation/grade/level. */
+        RegradeRequest: {
+            /**
+             * Format: uuid
+             * @description Designation. Tenant-wide.
+             */
+            occupationId?: string | null;
+            /**
+             * Format: uuid
+             * @description Company-scoped.
+             */
+            gradeId?: string | null;
+            /**
+             * Format: uuid
+             * @description Company-scoped.
+             */
+            levelId?: string | null;
+            /**
+             * Format: date
+             * @description Backdating allowed; future-dated applies when it matures.
+             */
+            validFrom: string;
+            /**
+             * @description Defaults to REGRADE.
+             * @enum {string}
+             */
+            changeType?: "REGRADE" | "PROMOTION" | "DEMOTION" | "CORRECTION";
+            reason?: string | null;
+        };
+        /** @description One decision on the RATE axis (what you're paid) — Sprint 3/4's retro-pay input. The rate must match the pay type (mirrors `ck_rate_by_type`). */
+        RateChangeRequest: {
+            payType: components["schemas"]["PayType"];
+            /** @description Required when payType is Hourly. */
+            hourlyRate?: number | null;
+            /** @description Required when payType is Salary. */
+            salaryPerPeriod?: number | null;
+            /**
+             * Format: date
+             * @description Backdating allowed; future-dated applies when it matures.
+             */
+            validFrom: string;
+            /**
+             * @description Defaults to RATE_CHANGE.
+             * @enum {string}
+             */
+            changeType?: "RATE_CHANGE" | "PROMOTION" | "CORRECTION";
+            reason?: string | null;
+        };
+        /** @description One row of the merged position timeline (the §8.5 UNION view — a read concern). The axis says which table the row lives in; the full row detail stays on its own axis. */
+        PositionTimelineEntry: {
+            /** Format: date */
+            validFrom: string;
+            /** @enum {string} */
+            axis: "PLACEMENT" | "JOB" | "RATE";
+            changeType: string;
+            reason?: string | null;
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
         };
     };
     responses: {

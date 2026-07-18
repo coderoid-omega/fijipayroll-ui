@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/apiClient';
 import { queryKeys, type ListParams } from '@/lib/queryKeys';
 import type {
+  CompanyLookup,
   ContractChangeRequest,
   ContractTermCreate,
   ContractType,
@@ -14,7 +15,10 @@ import type {
   ExitReason,
   ExtendProbationRequest,
   LiftSuspensionRequest,
+  Lookup,
   PayFrequency,
+  RateChangeRequest,
+  RegradeRequest,
   RehireRequest,
   StageChangeRequest,
   SuspendRequest,
@@ -54,6 +58,31 @@ export function usePayFrequencyOptions(companyId: string) {
   return useQuery({
     queryKey: queryKeys.payFrequencies(companyId),
     queryFn: () => api.get<PayFrequency[]>('/pay-frequencies'),
+    enabled: Boolean(companyId),
+  });
+}
+
+// Regrade's reference data — occupation is tenant-wide; grade/level are company-scoped (D11).
+export function useOccupationOptions() {
+  return useQuery({
+    queryKey: queryKeys.occupations(),
+    queryFn: () => api.get<Lookup[]>('/occupations'),
+    staleTime: 60 * 60_000,
+  });
+}
+
+export function useGradeOptions(companyId: string) {
+  return useQuery({
+    queryKey: queryKeys.companyLookups('grades', companyId),
+    queryFn: () => api.get<CompanyLookup[]>('/grades'),
+    enabled: Boolean(companyId),
+  });
+}
+
+export function useLevelOptions(companyId: string) {
+  return useQuery({
+    queryKey: queryKeys.companyLookups('levels', companyId),
+    queryFn: () => api.get<CompanyLookup[]>('/levels'),
     enabled: Boolean(companyId),
   });
 }
@@ -215,4 +244,22 @@ export function usePatchEngagement(companyId: string, id: string) {
     // The engagement changed and (when current) the employee cache with it — refresh the subtree.
     onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.employees.detail(companyId, id) }),
   });
+}
+
+// ---- position history: regrade + rate-change (Epic 6) ----
+
+export function usePositionHistory(companyId: string, id: string) {
+  return useQuery({
+    queryKey: queryKeys.employees.positionHistory(companyId, id),
+    queryFn: () => employeesApi.positionHistory(id),
+    enabled: Boolean(companyId && id),
+  });
+}
+
+export function useRegrade(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: RegradeRequest) => employeesApi.regrade(id, body));
+}
+
+export function useRateChange(companyId: string, id: string) {
+  return useLifecycleMutation(companyId, id, (body: RateChangeRequest) => employeesApi.rateChange(id, body));
 }

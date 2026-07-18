@@ -702,3 +702,41 @@ export interface SuspensionHistoryEntry {
 export interface EngagementPatch {
   continuousServiceDate: string;
 }
+
+// ---- position history (Sprint 2 Epic 6) ----
+// Three axes, one action each; backdating is allowed; the cache resolves as-of today server-side.
+
+export type RegradeChangeType = 'REGRADE' | 'PROMOTION' | 'DEMOTION' | 'CORRECTION';
+export type RateChangeType = 'RATE_CHANGE' | 'PROMOTION' | 'CORRECTION';
+export type PositionAxis = 'PLACEMENT' | 'JOB' | 'RATE';
+
+/** Regrade (JOB axis) — supply at least one of occupation/grade/level. */
+export interface RegradeRequest {
+  occupationId?: string | null;
+  gradeId?: string | null;
+  levelId?: string | null;
+  validFrom: string;
+  changeType?: RegradeChangeType;
+  reason?: string | null;
+}
+
+/** Rate change (RATE axis) — the rate must match the pay type. */
+export interface RateChangeRequest {
+  payType: PayType;
+  hourlyRate?: number | null;
+  salaryPerPeriod?: number | null;
+  validFrom: string;
+  changeType?: RateChangeType;
+  reason?: string | null;
+}
+
+/** One row of the merged position timeline (§8.5 UNION view). A promotion shows as two entries
+ * (JOB + RATE) on one date — honest; they were two actions. */
+export interface PositionTimelineEntry {
+  validFrom: string;
+  axis: PositionAxis;
+  changeType: string;
+  reason?: string | null;
+  createdBy: string;
+  createdAt: string;
+}
