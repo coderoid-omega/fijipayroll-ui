@@ -28,6 +28,8 @@ import type {
   FnpfScheme,
   FnpfSchemeWrite,
   LiftSuspensionRequest,
+  RateChangeRequest,
+  RegradeRequest,
   RehireRequest,
   SuspendRequest,
   TerminateRequest,
@@ -55,6 +57,7 @@ import {
   employees,
   employmentStages,
   engagements,
+  positionHistory,
   stageHistory,
   suspensionHistory,
   ethnicOrigins,
@@ -1410,6 +1413,106 @@ export const employeesHandlers: RequestHandler[] = [
     if (engagement.isCurrent)
       employees[idx] = { ...employees[idx]!, continuousServiceDate: body.continuousServiceDate };
     return HttpResponse.json(engagement);
+  }),
+
+  // ---------------- POSITION HISTORY: regrade + rate-change (Sprint 2 Epic 6) ----------------
+  // Three axes, one action each; backdating is allowed; the cache resolves as-of today. This mock
+  // approximates "as-of today" as "latest row valid_from <= today" so the detail cache mirrors it.
+
+  http.post(url('/employees/:id/regrade'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as RegradeRequest;
+    if (!body.occupationId && !body.gradeId && !body.levelId)
+      return problem(422, 'REGRADE_EMPTY', 'Supply at least one of occupationId, gradeId or levelId.');
+    if (body.occupationId && !occupations.some((o) => o.id === body.occupationId))
+      return problem(422, 'OCCUPATION_INVALID', 'Occupation does not exist.');
+    if (body.gradeId && !grades.some((g) => g.id === body.gradeId && g.companyId === companyId))
+      return problem(422, 'GRADE_INVALID', 'Grade does not exist for this company.');
+    if (body.levelId && !levels.some((l) => l.id === body.levelId && l.companyId === companyId))
+      return problem(422, 'LEVEL_INVALID', 'Level does not exist for this company.');
+    if (positionHistory.some((p) => p.employeeId === employee.id && p.axis === 'JOB' && p.validFrom === body.validFrom))
+      return problem(409, 'REGRADE_DATE_CONFLICT', `A job-history row already exists for ${body.validFrom}.`);
+
+    positionHistory.push({
+      employeeId: employee.id, validFrom: body.validFrom, axis: 'JOB',
+      changeType: body.changeType ?? 'REGRADE', reason: body.reason ?? null,
+      createdBy: 'mock', createdAt: new Date().toISOString(),
+    });
+    // Cache resolves as-of today: only apply if this is the latest JOB row up to today.
+    const today = new Date().toISOString().slice(0, 10);
+    const latestJob = positionHistory
+      .filter((p) => p.employeeId === employee.id && p.axis === 'JOB' && p.validFrom <= today)
+      .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
+    if (latestJob && latestJob.validFrom === body.validFrom)
+      employees[idx] = {
+        ...employee,
+        occupationId: body.occupationId ?? employee.occupationId ?? null,
+        gradeId: body.gradeId ?? employee.gradeId ?? null,
+        levelId: body.levelId ?? employee.levelId ?? null,
+      };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.post(url('/employees/:id/rate-change'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    const idx = employees.findIndex((e) => e.id === params.id && e.companyId === companyId);
+    if (idx === -1) return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const employee = employees[idx]!;
+    const engagement = engagements.find((g) => g.employeeId === employee.id && g.isCurrent);
+    if (!engagement) return problem(422, 'ENGAGEMENT_MISSING', 'Employee has no current engagement');
+
+    const body = (await request.json()) as RateChangeRequest;
+    const rateMatches =
+      (body.payType === 'Hourly' && body.hourlyRate != null) ||
+      (body.payType === 'Salary' && body.salaryPerPeriod != null);
+    if (!rateMatches)
+      return problem(422, 'VALIDATION_FAILED', 'Validation failed', {
+        errors: { [body.payType === 'Hourly' ? 'hourlyRate' : 'salaryPerPeriod']: ['Rate must match the pay type'] },
+      });
+    if (positionHistory.some((p) => p.employeeId === employee.id && p.axis === 'RATE' && p.validFrom === body.validFrom))
+      return problem(409, 'RATE_CHANGE_DATE_CONFLICT', `A rate-history row already exists for ${body.validFrom}.`);
+
+    positionHistory.push({
+      employeeId: employee.id, validFrom: body.validFrom, axis: 'RATE',
+      changeType: body.changeType ?? 'RATE_CHANGE', reason: body.reason ?? null,
+      createdBy: 'mock', createdAt: new Date().toISOString(),
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    const latestRate = positionHistory
+      .filter((p) => p.employeeId === employee.id && p.axis === 'RATE' && p.validFrom <= today)
+      .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
+    if (latestRate && latestRate.validFrom === body.validFrom)
+      employees[idx] = {
+        ...employee,
+        payType: body.payType,
+        hourlyRate: body.payType === 'Hourly' ? body.hourlyRate ?? null : null,
+        salaryPerPeriod: body.payType === 'Salary' ? body.salaryPerPeriod ?? null : null,
+      };
+    return HttpResponse.json(employees[idx]);
+  }),
+
+  http.get(url('/employees/:id/position-history'), async ({ request, params }) => {
+    await delay();
+    if (!requireAuth(request)) return problem(401, 'UNAUTHORIZED', 'Missing/invalid token');
+    const companyId = activeCompanyId(request);
+    if (!employees.some((e) => e.id === params.id && e.companyId === companyId))
+      return problem(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+    const list = positionHistory
+      .filter((p) => p.employeeId === params.id)
+      .sort((a, b) => b.validFrom.localeCompare(a.validFrom) || a.axis.localeCompare(b.axis))
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .map(({ employeeId, ...entry }) => entry);   // response shape is PositionTimelineEntry
+    return HttpResponse.json(list);
   }),
 ];
 

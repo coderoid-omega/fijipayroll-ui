@@ -13,6 +13,9 @@ import type {
   EngagementPatch,
   ExtendProbationRequest,
   LiftSuspensionRequest,
+  PositionTimelineEntry,
+  RateChangeRequest,
+  RegradeRequest,
   RehireRequest,
   StageChangeRequest,
   StageHistoryEntry,
@@ -93,4 +96,18 @@ export const employeesApi = {
   /** The continuous-service correction path ([S06]); the cache resyncs when current. */
   patchEngagement: (id: string, engagementId: string, body: EngagementPatch) =>
     api.patch<Engagement>(`/employees/${id}/engagements/${engagementId}`, body),
+
+  // ---- position history (Epic 6). Backdating is allowed; the cache resolves as-of today. ----
+
+  /** Regrade (JOB axis) — one job-history row. Duplicate date → 409 `REGRADE_DATE_CONFLICT`. */
+  regrade: (id: string, body: RegradeRequest) =>
+    api.post<Employee>(`/employees/${id}/regrade`, body),
+
+  /** Rate change (RATE axis) — Sprint 3/4's retro-pay input. Duplicate date → 409. */
+  rateChange: (id: string, body: RateChangeRequest) =>
+    api.post<Employee>(`/employees/${id}/rate-change`, body),
+
+  /** The merged position timeline (a UNION over the three axes), newest first. */
+  positionHistory: (id: string) =>
+    api.get<PositionTimelineEntry[]>(`/employees/${id}/position-history`),
 };
